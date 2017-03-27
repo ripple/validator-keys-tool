@@ -1,5 +1,10 @@
 # validator-keys-tool
 
+[![CircleCI](https://circleci.com/gh/ripple/validator-keys-tool.svg?style=svg)](https://circleci.com/gh/ripple/validator-keys-tool)
+[![Build Status](https://travis-ci.org/ripple/validator-keys-tool.svg?branch=master)](https://travis-ci.org/ripple/validator-keys-tool)
+[![Build status](https://ci.appveyor.com/api/projects/status/dd42bs8pfao8k82p/branch/master?svg=true)](https://ci.appveyor.com/project/ripple/validator-keys-tool)
+[![codecov](https://codecov.io/gh/ripple/validator-keys-tool/branch/master/graph/badge.svg)](https://codecov.io/gh/ripple/validator-keys-tool)
+
 Rippled validator key generation tool
 
 ## Table of contents
