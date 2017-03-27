@@ -20,11 +20,39 @@
 
 #include <ValidatorKeysTool.h>
 #include <ValidatorKeys.h>
+#include <ripple/beast/core/PlatformConfig.h>
+#include <ripple/beast/core/SemanticVersion.h>
 #include <ripple/beast/unit_test.h>
 #include <beast/unit_test/dstream.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
+
+//------------------------------------------------------------------------------
+char const* const versionString =
+
+    //--------------------------------------------------------------------------
+    //  The build version number. You must edit this for each release
+    //  and follow the format described at http://semver.org/
+    //
+        "0.1.0"
+
+#if defined(DEBUG) || defined(SANITIZER)
+       "+"
+#ifdef DEBUG
+        "DEBUG"
+#ifdef SANITIZER
+        "."
+#endif
+#endif
+
+#ifdef SANITIZER
+        BEAST_PP_STR1_(SANITIZER)
+#endif
+#endif
+
+    //--------------------------------------------------------------------------
+    ;
 
 static int runUnitTests ()
 {
@@ -193,6 +221,19 @@ void printHelp (const boost::program_options::options_description& desc)
 }
 //LCOV_EXCL_STOP
 
+std::string const&
+getVersionString ()
+{
+    static std::string const value = [] {
+        std::string const s = versionString;
+        beast::SemanticVersion v;
+        if (!v.parse (s) || v.print () != s)
+            throw std::logic_error (s + ": Bad version string"); //LCOV_EXCL_LINE
+        return s;
+    }();
+    return value;
+}
+
 int main (int argc, char** argv)
 {
 #if defined(__GNUC__) && !defined(__clang__)
@@ -218,6 +259,7 @@ int main (int argc, char** argv)
     ("help,h", "Display this message.")
     ("keyfile", po::value<std::string> (), "Specify the key file.")
     ("unittest,u", "Perform unit tests.")
+    ("version", "Display the build version.")
     ;
 
     po::options_description hidden("Hidden options");
@@ -257,6 +299,13 @@ int main (int argc, char** argv)
         return runUnitTests();
 
     //LCOV_EXCL_START
+    if (vm.count ("version"))
+    {
+        std::cout << "validator-keys version " <<
+            getVersionString () << std::endl;
+        return 0;
+    }
+
     if (vm.count ("help") || ! vm.count ("command"))
     {
         printHelp (general);

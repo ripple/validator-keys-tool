@@ -29,6 +29,9 @@ class path;
 }
 }
 
+std::string const&
+getVersionString ();
+
 void
 createKeyFile (boost::filesystem::path const& keyFile);
 

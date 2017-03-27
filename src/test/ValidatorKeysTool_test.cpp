@@ -299,6 +299,8 @@ public:
     void
     run() override
     {
+        getVersionString();
+
         testCreateKeyFile ();
         testCreateToken ();
         testCreateRevocation ();
