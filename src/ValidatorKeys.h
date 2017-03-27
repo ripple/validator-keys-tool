@@ -106,6 +106,15 @@ public:
     std::string
     revoke ();
 
+    /** Signs string with validator key
+
+    @papam data String to sign
+
+    @return hex-encoded signature
+    */
+    std::string
+    sign (std::string const& data);
+
     /** Returns the public key. */
     PublicKey const&
     publicKey () const

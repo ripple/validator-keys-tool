@@ -192,9 +192,9 @@ ValidatorKeys::createValidatorToken (
     st[sfPublicKey] = publicKey_;
     st[sfSigningPubKey] = tokenPublic;
 
-    sign(st, HashPrefix::manifest, keyType, tokenSecret);
+    ripple::sign(st, HashPrefix::manifest, keyType, tokenSecret);
 
-    sign(st, HashPrefix::manifest, keyType_, secretKey_,
+    ripple::sign(st, HashPrefix::manifest, keyType_, secretKey_,
         sfMasterSignature);
 
     Serializer s;
@@ -214,7 +214,7 @@ ValidatorKeys::revoke ()
     st[sfSequence] = std::numeric_limits<std::uint32_t>::max ();
     st[sfPublicKey] = publicKey_;
 
-    sign(st, HashPrefix::manifest, keyType_, secretKey_,
+    ripple::sign(st, HashPrefix::manifest, keyType_, secretKey_,
         sfMasterSignature);
 
     Serializer s;
@@ -222,6 +222,12 @@ ValidatorKeys::revoke ()
 
     std::string m (static_cast<char const*> (s.data()), s.size());
     return beast::detail::base64_encode(m);
+}
+
+std::string
+ValidatorKeys::sign (std::string const& data)
+{
+    return strHex(ripple::sign (publicKey_, secretKey_, makeSlice (data)));
 }
 
 } // ripple

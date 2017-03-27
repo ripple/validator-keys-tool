@@ -30,14 +30,19 @@ class path;
 }
 
 void
-createKeyFile (const boost::filesystem::path& keyFile);
+createKeyFile (boost::filesystem::path const& keyFile);
 
 void
-createToken (const boost::filesystem::path& keyFile);
+createToken (boost::filesystem::path const& keyFile);
 
 void
-createRevocation (const boost::filesystem::path& keyFile);
+createRevocation (boost::filesystem::path const& keyFile);
+
+void
+signData (std::string const& data,
+    boost::filesystem::path const& keyFile);
 
 int
-runCommand (const std::string& command,
-    const boost::filesystem::path& keyFile);
+runCommand (std::string const& command,
+    std::vector <std::string> const& arg,
+    boost::filesystem::path const& keyFile);

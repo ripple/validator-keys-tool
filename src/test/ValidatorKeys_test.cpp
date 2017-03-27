@@ -19,6 +19,7 @@
 
 #include <ValidatorKeys.h>
 #include <test/KeyFileGuard.h>
+#include <ripple/basics/StringUtilities.h>
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/Sign.h>
 #include <beast/core/detail/base64.hpp>
@@ -259,6 +260,40 @@ private:
     }
 
     void
+    testSign ()
+    {
+        testcase ("Sign");
+
+        std::map<KeyType, std::string> expected({
+            { KeyType::ed25519, "2EE541D6825791BF5454C571D2B363EAB3F01C73159B1F"
+                "237AC6D38663A82B9D5EAD262D5F776B916E68247A1F082090F3BAE7ABC939"
+                "C8F29B0DC759FD712300" },
+            { KeyType::secp256k1, "3045022100F142C27BF83D8D4541C7A4E759DE64A672"
+                "51A388A422DFDA6F4B470A2113ABC4022002DA56695F3A805F62B55E7CC8D5"
+                "55438D64A229CD0B4BA2AE33402443B20409" }
+        });
+
+        std::string const data = "data to sign";
+
+        for (auto const keyType : keyTypes)
+        {
+            auto const sk = generateSecretKey(keyType, generateSeed("test"));
+            ValidatorKeys keys (keyType, sk, 1);
+
+            auto const signature = keys.sign (data);
+            BEAST_EXPECT(expected[keyType] == signature);
+
+            auto const ret = strUnHex (signature);
+            BEAST_EXPECT (ret.second);
+            BEAST_EXPECT (ret.first.size ());
+            BEAST_EXPECT (verify (
+                keys.publicKey(),
+                makeSlice (data),
+                makeSlice (ret.first)));
+        }
+    }
+
+    void
     testWriteToFile ()
     {
         testcase ("Write to File");
@@ -353,6 +388,7 @@ public:
         testMakeValidatorKeys ();
         testCreateValidatorToken ();
         testRevoke ();
+        testSign ();
         testWriteToFile ();
     }
 };

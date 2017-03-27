@@ -97,3 +97,18 @@ Sample output:
 Add the `[validator_key_revocation]` value to this validator's config and
 restart rippled. Rename the old key file and generate new [validator keys](#validator-keys) and
 a corresponding [validator token](#validator-token).
+
+## Signing
+
+The `validator-keys` tool can be used to sign arbitrary data with the validator
+key.
+
+```
+  $ validator-keys sign "your data to sign"
+```
+
+Sample output:
+
+```
+  B91B73536235BBA028D344B81DBCBECF19C1E0034AC21FB51C2351A138C9871162F3193D7C41A49FB7AABBC32BC2B116B1D5701807BE462D8800B5AEA4F0550D
+```

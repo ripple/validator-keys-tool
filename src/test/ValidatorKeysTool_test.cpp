@@ -30,10 +30,30 @@ class ValidatorKeysTool_test : public beast::unit_test::suite
 {
 private:
 
+    // Allow cout to be redirected.  Destructor restores old cout streambuf.
+    class CoutRedirect
+    {
+    public:
+        CoutRedirect (std::stringstream& sStream)
+        : old_ (std::cout.rdbuf (sStream.rdbuf()))
+        { }
+
+        ~CoutRedirect()
+        {
+            std::cout.rdbuf (old_);
+        }
+
+    private:
+        std::streambuf* const old_;
+    };
+
     void
     testCreateKeyFile ()
     {
         testcase ("Create Key File");
+
+        std::stringstream coutCapture;
+        CoutRedirect coutRedirect {coutCapture};
 
         using namespace boost::filesystem;
 
@@ -62,6 +82,9 @@ private:
     testCreateToken ()
     {
         testcase ("Create Token");
+
+        std::stringstream coutCapture;
+        CoutRedirect coutRedirect {coutCapture};
 
         using namespace boost::filesystem;
 
@@ -124,6 +147,9 @@ private:
     {
         testcase ("Create Revocation");
 
+        std::stringstream coutCapture;
+        CoutRedirect coutRedirect {coutCapture};
+
         using namespace boost::filesystem;
 
         std::string const subdir = "test_key_file";
@@ -148,24 +174,23 @@ private:
     }
 
     void
-    testRunCommand ()
+    testSign ()
     {
-        testcase ("Run Command");
+        testcase ("Sign");
+
+        std::stringstream coutCapture;
+        CoutRedirect coutRedirect {coutCapture};
 
         using namespace boost::filesystem;
 
-        std::string const subdir = "test_key_file";
-        KeyFileGuard g (*this, subdir);
-        path const keyFile = subdir / "validator_keys.json";
-
-        auto testArgs = [this](
-            std::string const& command,
+        auto testSign = [this](
+            std::string const& data,
             path const& keyFile,
             std::string const& expectedError)
         {
             try
             {
-                runCommand (command, keyFile);
+                signData (data, keyFile);
                 BEAST_EXPECT(expectedError.empty());
             }
             catch (std::exception const& e)
@@ -174,25 +199,99 @@ private:
             }
         };
 
+        std::string const data = "data to sign";
+
+        std::string const subdir = "test_key_file";
+        KeyFileGuard const g (*this, subdir);
+        path const keyFile = subdir / "validator_keys.json";
+
+        {
+            std::string const expectedError =
+                "Failed to open key file: " + keyFile.string();
+            testSign (data, keyFile, expectedError);
+        }
+
+        createKeyFile (keyFile);
+        BEAST_EXPECT(exists(keyFile));
+
+        {
+            std::string const emptyData = "";
+            std::string const expectedError =
+                "Syntax error: Must specify data string to sign";
+            testSign (emptyData, keyFile, expectedError);
+        }
+        {
+            std::string const expectedError = "";
+            testSign (data, keyFile, expectedError);
+        }
+    }
+
+    void
+    testRunCommand ()
+    {
+        testcase ("Run Command");
+
+        std::stringstream coutCapture;
+        CoutRedirect coutRedirect {coutCapture};
+
+        using namespace boost::filesystem;
+
+        std::string const subdir = "test_key_file";
+        KeyFileGuard g (*this, subdir);
+        path const keyFile = subdir / "validator_keys.json";
+
+        auto testCommand = [this](
+            std::string const& command,
+            std::vector <std::string> const& args,
+            path const& keyFile,
+            std::string const& expectedError)
+        {
+            try
+            {
+                runCommand (command, args, keyFile);
+                BEAST_EXPECT(expectedError.empty());
+            }
+            catch (std::exception const& e)
+            {
+                BEAST_EXPECT(e.what() == expectedError);
+            }
+        };
+
+        std::vector <std::string> const noArgs;
+        std::vector <std::string> const oneArg = { "some data" };
+        std::vector <std::string> const twoArgs = { "data", "more data" };
+        std::string const noError = "";
+        std::string const argError = "Syntax error: Wrong number of arguments";
         {
             std::string const command = "unknown";
             std::string const expectedError = "Unknown command: " + command;
-            testArgs (command, keyFile, expectedError);
+            testCommand (command, noArgs, keyFile, expectedError);
+            testCommand (command, oneArg, keyFile, expectedError);
+            testCommand (command, twoArgs, keyFile, expectedError);
         }
         {
             std::string const command = "create_keys";
-            std::string const expectedError = "";
-            testArgs (command, keyFile, expectedError);
+            testCommand (command, noArgs, keyFile, noError);
+            testCommand (command, oneArg, keyFile, argError);
+            testCommand (command, twoArgs, keyFile, argError);
         }
         {
             std::string const command = "create_token";
-            std::string const expectedError = "";
-            testArgs (command, keyFile, expectedError);
+            testCommand (command, noArgs, keyFile, noError);
+            testCommand (command, oneArg, keyFile, argError);
+            testCommand (command, twoArgs, keyFile, argError);
         }
         {
             std::string const command = "revoke_keys";
-            std::string const expectedError = "";
-            testArgs (command, keyFile, expectedError);
+            testCommand (command, noArgs, keyFile, noError);
+            testCommand (command, oneArg, keyFile, argError);
+            testCommand (command, twoArgs, keyFile, argError);
+        }
+        {
+            std::string const command = "sign";
+            testCommand (command, noArgs, keyFile, argError);
+            testCommand (command, oneArg, keyFile, noError);
+            testCommand (command, twoArgs, keyFile, argError);
         }
     }
 
@@ -203,6 +302,7 @@ public:
         testCreateKeyFile ();
         testCreateToken ();
         testCreateRevocation ();
+        testSign ();
         testRunCommand ();
     }
 };

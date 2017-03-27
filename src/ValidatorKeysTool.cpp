@@ -37,7 +37,7 @@ static int runUnitTests ()
     return EXIT_SUCCESS;
 }
 
-void createKeyFile (const boost::filesystem::path& keyFile)
+void createKeyFile (boost::filesystem::path const& keyFile)
 {
     using namespace ripple;
 
@@ -54,7 +54,7 @@ void createKeyFile (const boost::filesystem::path& keyFile)
         "\n\nThis file should be stored securely and not shared.\n\n";
 }
 
-void createToken (const boost::filesystem::path& keyFile)
+void createToken (boost::filesystem::path const& keyFile)
 {
     using namespace ripple;
 
@@ -87,7 +87,7 @@ void createToken (const boost::filesystem::path& keyFile)
     std::cout << std::endl;
 }
 
-void createRevocation (const boost::filesystem::path& keyFile)
+void createRevocation (boost::filesystem::path const& keyFile)
 {
     using namespace ripple;
 
@@ -115,17 +115,52 @@ void createRevocation (const boost::filesystem::path& keyFile)
     std::cout << std::endl;
 }
 
-int runCommand (const std::string& command,
-    const boost::filesystem::path& keyFile)
+void signData (std::string const& data,
+    boost::filesystem::path const& keyFile)
 {
+    using namespace ripple;
+
+    if (data.empty())
+        throw std::runtime_error (
+            "Syntax error: Must specify data string to sign");
+
+    auto keys = ValidatorKeys::make_ValidatorKeys (keyFile);
+
+    if (keys.revoked())
+        std::cout << "WARNING: Validator keys have been revoked!\n\n";
+
+    std::cout << keys.sign (data) << std::endl;
+    std::cout << std::endl;
+}
+
+int runCommand (std::string const& command,
+    std::vector <std::string> const& args,
+    boost::filesystem::path const& keyFile)
+{
+    using namespace std;
+
+    static map<string, vector<string>::size_type> const commandArgs = {
+        { "create_keys", 0 },
+        { "create_token", 0 },
+        { "revoke_keys", 0 },
+        { "sign", 1 }};
+
+    auto const iArgs = commandArgs.find (command);
+
+    if (iArgs == commandArgs.end ())
+        throw std::runtime_error ("Unknown command: " + command);
+
+    if (args.size() != iArgs->second)
+        throw std::runtime_error ("Syntax error: Wrong number of arguments");
+
     if (command == "create_keys")
         createKeyFile (keyFile);
     else if (command == "create_token")
         createToken (keyFile);
     else if (command == "revoke_keys")
         createRevocation (keyFile);
-    else
-        throw std::runtime_error ("Unknown command: " + command);
+    else if (command == "sign")
+        signData (args[0], keyFile);
 
     return 0;
 }
@@ -147,15 +182,14 @@ getEnvVar (char const* name)
 
 void printHelp (const boost::program_options::options_description& desc)
 {
-    static std::string const name = "validator-keys";
-
     std::cerr
-        << name << " [options] <command>\n"
+        << "validator-keys [options] <command> [<argument> ...]\n"
         << desc << std::endl
         << "Commands: \n"
            "     create_keys        Generate validator keys.\n"
            "     create_token       Generate validator token.\n"
-           "     revoke_keys        Revoke validator keys.\n";
+           "     revoke_keys        Revoke validator keys.\n"
+           "     sign <data>        Sign string with validator key.\n";
 }
 //LCOV_EXCL_STOP
 
@@ -186,13 +220,14 @@ int main (int argc, char** argv)
     ("unittest,u", "Perform unit tests.")
     ;
 
-    // Interpret positional arguments as --parameters.
     po::options_description hidden("Hidden options");
     hidden.add_options()
-    ("command", po::value< std::string > (),
-        "Command.");
+    ("command", po::value< std::string > (), "Command.")
+    ("arguments",po::value< std::vector<std::string> > ()->default_value(
+        std::vector <std::string> (), "empty"), "Arguments.")
+    ;
     po::positional_options_description p;
-    p.add ("command", -1);
+    p.add ("command", 1).add ("arguments", -1);
 
     po::options_description cmdline_options;
     cmdline_options.add(general).add(hidden);
@@ -202,7 +237,7 @@ int main (int argc, char** argv)
     {
         po::store (po::command_line_parser (argc, argv)
             .options (cmdline_options)    // Parse options.
-            .positional (p)               // Remainder as --parameters.
+            .positional (p)
             .run (),
             vm);
         po::notify (vm);                  // Invoke option notify functions.
@@ -230,7 +265,8 @@ int main (int argc, char** argv)
 
     std::string const homeDir = getEnvVar ("HOME");
     std::string const defaultKeyFile =
-        (homeDir.empty () ? boost::filesystem::current_path ().string () : homeDir) +
+        (homeDir.empty () ?
+            boost::filesystem::current_path ().string () : homeDir) +
         "/.ripple/validator-keys.json";
 
     try
@@ -242,6 +278,7 @@ int main (int argc, char** argv)
 
         return runCommand (
             vm["command"].as<std::string>(),
+            vm["arguments"].as<std::vector<std::string>>(),
             keyFile);
     }
     catch(std::exception const& e)
