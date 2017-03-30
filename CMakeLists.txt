@@ -86,7 +86,7 @@ if (WIN32 OR is_xcode)
     list(APPEND non_unity_srcs "${cursrcs}")
   endforeach()
 
-  file(GLOB_RECURSE all_headers src/*.hpp extras/*.hpp)
+  file(GLOB_RECURSE all_headers src/*.hpp extras/*.hpp src/*.h extras/*.h)
   list(APPEND rippled_src "${all_headers}")
 
   # Properties
