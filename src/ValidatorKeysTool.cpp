@@ -27,6 +27,15 @@
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
+#ifdef BOOST_MSVC
+# ifndef WIN32_LEAN_AND_MEAN // VC_EXTRALEAN
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#  undef WIN32_LEAN_AND_MEAN
+# else
+#  include <windows.h>
+# endif
+#endif
 
 //------------------------------------------------------------------------------
 char const* const versionString =

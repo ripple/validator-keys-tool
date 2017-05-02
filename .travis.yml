@@ -39,6 +39,7 @@ matrix:
       - TARGET=coverage
       - PATH=$PWD/cmake/bin:$PATH
       - APP=validator-keys
+      - APP_ARGS=--unittest
       - BUILD=cmake
 
     # - compiler: clang
