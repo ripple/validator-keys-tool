@@ -102,15 +102,8 @@ void createToken (boost::filesystem::path const& keyFile)
     // Update key file with new token sequence
     keys.writeToFile (keyFile);
 
-    std::cout << "Update rippled.cfg file with these values and restart rippled:\n\n";
-    std::cout << "# validator public key: " <<
-        toBase58 (TOKEN_NODE_PUBLIC, keys.publicKey()) << "\n\n";
-    std::cout << "[validator_token]\n";
-
-    auto const tokenStr = token->toString();
-    auto const len = 72;
-    for (auto i = 0; i < tokenStr.size(); i += len)
-        std::cout << tokenStr.substr(i, len) << std::endl;
+    std::cout << "Manifest:\n" << token->manifest << std::endl << std::endl;
+    std::cout << "Ephemeral private key:\n" << toBase58(TOKEN_NODE_PRIVATE, token->secretKey) << std::endl;
 
     std::cout << std::endl;
 }

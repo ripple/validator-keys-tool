@@ -227,7 +227,7 @@ ValidatorKeys::revoke ()
 std::string
 ValidatorKeys::sign (std::string const& data)
 {
-    return strHex(ripple::sign (publicKey_, secretKey_, makeSlice (data)));
+    return strHex(ripple::sign (publicKey_, secretKey_, makeSlice (beast::detail::base64_decode(data))));
 }
 
 } // ripple
