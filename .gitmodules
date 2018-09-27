@@ -1,3 +1,0 @@
-[submodule "extras/ripple-libpp"]
-	path = extras/ripple-libpp
-	url = https://github.com/ripple/ripple-libpp.git

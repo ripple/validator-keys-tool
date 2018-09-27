@@ -19,10 +19,10 @@
 
 #include <ValidatorKeys.h>
 #include <test/KeyFileGuard.h>
+#include <ripple/basics/base64.h>
 #include <ripple/basics/StringUtilities.h>
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/Sign.h>
-#include <beast/core/detail/base64.hpp>
 
 namespace ripple {
 
@@ -144,7 +144,7 @@ private:
             {
                 auto const kp = generateKeyPair (keyType, randomSeed ());
                 jv["secret_key"] =
-                    toBase58(TOKEN_NODE_PRIVATE, kp.second);
+                    toBase58(TokenType::NodePrivate, kp.second);
             }
             expectedError = "Key file '" + keyFile.string() +
                 "' contains invalid \"token_sequence\" field: " +
@@ -194,7 +194,7 @@ private:
                     derivePublicKey(tokenKeyType, token->secretKey);
 
                 STObject st (sfGeneric);
-                auto const manifest = beast::detail::base64_decode(token->manifest);
+                auto const manifest = ripple::base64_decode(token->manifest);
                 SerialIter sit (manifest.data (), manifest.size ());
                 st.set (sit);
 
@@ -242,7 +242,7 @@ private:
             auto const revocation = keys.revoke ();
 
             STObject st (sfGeneric);
-            auto const manifest = beast::detail::base64_decode(revocation);
+            auto const manifest = ripple::base64_decode(revocation);
             SerialIter sit (manifest.data (), manifest.size ());
             st.set (sit);
 
