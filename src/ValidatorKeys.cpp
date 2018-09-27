@@ -19,12 +19,12 @@
 //==============================================================================
 
 #include <ValidatorKeys.h>
+#include <ripple/basics/base64.h>
 #include <ripple/basics/StringUtilities.h>
 #include <ripple/json/json_reader.h>
 #include <ripple/json/to_string.h>
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/Sign.h>
-#include <beast/core/detail/base64.hpp>
 #include <boost/filesystem.hpp>
 #include <fstream>
 
@@ -34,10 +34,10 @@ std::string
 ValidatorToken::toString () const
 {
     Json::Value jv;
-    jv["validation_secret_key"] = strHex(secretKey.data(), secretKey.size());
+    jv["validation_secret_key"] = strHex(secretKey);
     jv["manifest"] = manifest;
 
-    return beast::detail::base64_encode(to_string(jv));
+    return ripple::base64_encode(to_string(jv));
 }
 
 ValidatorKeys::ValidatorKeys (KeyType const& keyType)
@@ -98,7 +98,7 @@ ValidatorKeys::make_ValidatorKeys (
     }
 
     auto const keyType = keyTypeFromString (jKeys["key_type"].asString());
-    if (keyType == KeyType::invalid)
+    if (!keyType)
     {
         throw std::runtime_error (
             "Key file '" + keyFile.string() +
@@ -107,7 +107,7 @@ ValidatorKeys::make_ValidatorKeys (
     }
 
     auto const secret = parseBase58<SecretKey> (
-        TokenType::TOKEN_NODE_PRIVATE, jKeys["secret_key"].asString());
+        TokenType::NodePrivate, jKeys["secret_key"].asString());
 
     if (! secret)
     {
@@ -139,7 +139,7 @@ ValidatorKeys::make_ValidatorKeys (
             jKeys["revoked"].toStyledString());
 
     return ValidatorKeys (
-        keyType, *secret, tokenSequence, jKeys["revoked"].asBool());
+        *keyType, *secret, tokenSequence, jKeys["revoked"].asBool());
 }
 
 void
@@ -150,8 +150,8 @@ ValidatorKeys::writeToFile (
 
     Json::Value jv;
     jv["key_type"] = to_string(keyType_);
-    jv["public_key"] = toBase58(TOKEN_NODE_PUBLIC, publicKey_);
-    jv["secret_key"] = toBase58(TOKEN_NODE_PRIVATE, secretKey_);
+    jv["public_key"] = toBase58(TokenType::NodePublic, publicKey_);
+    jv["secret_key"] = toBase58(TokenType::NodePrivate, secretKey_);
     jv["token_sequence"] = Json::UInt (tokenSequence_);
     jv["revoked"] = revoked_;
 
@@ -202,7 +202,7 @@ ValidatorKeys::createValidatorToken (
 
     std::string m (static_cast<char const*> (s.data()), s.size());
     return ValidatorToken {
-        beast::detail::base64_encode(m), tokenSecret };
+        ripple::base64_encode(m), tokenSecret };
 }
 
 std::string
@@ -221,7 +221,7 @@ ValidatorKeys::revoke ()
     st.add(s);
 
     std::string m (static_cast<char const*> (s.data()), s.size());
-    return beast::detail::base64_encode(m);
+    return ripple::base64_encode(m);
 }
 
 std::string
