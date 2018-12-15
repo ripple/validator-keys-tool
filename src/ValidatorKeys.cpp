@@ -25,7 +25,9 @@
 #include <ripple/json/to_string.h>
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/Sign.h>
+#include <boost/algorithm/clamp.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/regex.hpp>
 #include <fstream>
 
 namespace ripple {
@@ -138,8 +140,43 @@ ValidatorKeys::make_ValidatorKeys (
             "' contains invalid \"revoked\" field: " +
             jKeys["revoked"].toStyledString());
 
-    return ValidatorKeys (
+    ValidatorKeys vk(
         *keyType, *secret, tokenSequence, jKeys["revoked"].asBool());
+
+    if (jKeys.isMember("domain"))
+    {
+        if (! jKeys["domain"].isString())
+            throw std::runtime_error (
+                "Key file '" + keyFile.string() +
+                "' contains invalid \"domain\" field: " +
+                jKeys["domain"].toStyledString());
+
+        vk.domain(jKeys["domain"].asString());
+    }
+
+    if (jKeys.isMember("manifest"))
+    {
+        if (! jKeys["manifest"].isString())
+            throw std::runtime_error (
+                "Key file '" + keyFile.string() +
+                "' contains invalid \"manifest\" field: " +
+                jKeys["manifest"].toStyledString());
+
+        auto ret = strUnHex (jKeys["manifest"].asString());
+
+        if (!ret || ret->size() == 0)
+            throw std::runtime_error (
+                "Key file '" + keyFile.string() +
+                "' contains invalid \"manifest\" field: " +
+                jKeys["manifest"].toStyledString());
+
+        vk.manifest_.clear();
+        vk.manifest_.reserve(ret->size());
+        std::copy(ret->begin(), ret->end(),
+            std::back_inserter(vk.manifest_));
+    }
+
+    return vk;
 }
 
 void
@@ -154,6 +191,10 @@ ValidatorKeys::writeToFile (
     jv["secret_key"] = toBase58(TokenType::NodePrivate, secretKey_);
     jv["token_sequence"] = Json::UInt (tokenSequence_);
     jv["revoked"] = revoked_;
+    if (!domain_.empty())
+        jv["domain"] = domain_;
+    if (!manifest_.empty())
+        jv["manifest"] = strHex(makeSlice(manifest_));
 
     if (! keyFile.parent_path().empty())
     {
@@ -192,17 +233,21 @@ ValidatorKeys::createValidatorToken (
     st[sfPublicKey] = publicKey_;
     st[sfSigningPubKey] = tokenPublic;
 
-    ripple::sign(st, HashPrefix::manifest, keyType, tokenSecret);
+    if (!domain_.empty())
+        st[sfDomain] = makeSlice(domain_);
 
-    ripple::sign(st, HashPrefix::manifest, keyType_, secretKey_,
-        sfMasterSignature);
+    ripple::sign(st, HashPrefix::manifest, keyType, tokenSecret);
+    ripple::sign(st, HashPrefix::manifest, keyType_, secretKey_, sfMasterSignature);
 
     Serializer s;
     st.add(s);
 
-    std::string m (static_cast<char const*> (s.data()), s.size());
+    manifest_.clear();
+    manifest_.reserve(s.size());
+    std::copy(s.begin(), s.end(), std::back_inserter(manifest_));
+
     return ValidatorToken {
-        ripple::base64_encode(m), tokenSecret };
+        ripple::base64_encode(manifest_.data(), manifest_.size()), tokenSecret };
 }
 
 std::string
@@ -214,20 +259,58 @@ ValidatorKeys::revoke ()
     st[sfSequence] = std::numeric_limits<std::uint32_t>::max ();
     st[sfPublicKey] = publicKey_;
 
-    ripple::sign(st, HashPrefix::manifest, keyType_, secretKey_,
-        sfMasterSignature);
+    ripple::sign(st, HashPrefix::manifest, keyType_, secretKey_, sfMasterSignature);
 
     Serializer s;
     st.add(s);
 
-    std::string m (static_cast<char const*> (s.data()), s.size());
-    return ripple::base64_encode(m);
+    manifest_.clear();
+    manifest_.reserve(s.size());
+    std::copy(s.begin(), s.end(), std::back_inserter(manifest_));
+
+    return ripple::base64_encode(manifest_.data(), manifest_.size());
 }
 
 std::string
-ValidatorKeys::sign (std::string const& data)
+ValidatorKeys::sign (std::string const& data) const
 {
     return strHex(ripple::sign (publicKey_, secretKey_, makeSlice (data)));
+}
+
+void
+ValidatorKeys::domain(std::string d)
+{
+    if (!d.empty())
+    {
+        // A valid domain for a validator must be at least 4 characters
+        // long, should contain at least one . and should not be longer
+        // that 128 characters.
+        if (d.size() < 4 || d.size() > 128)
+            throw std::runtime_error (
+                "The domain must be between 4 and 128 characters long.");
+
+        // This regular expression should do a decent job of weeding out
+        // obviously wrong domain names but it isn't perfect. It does not
+        // really support IDNs. If this turns out to be an issue, a more
+        // thorough regex can be used or this check can just be removed.
+        static boost::regex const re(
+                "^"                     // Beginning of line
+                "("                     // Hostname or domain name
+                "(?!-)"                 //  - must not begin with '-'
+                "[a-zA-Z0-9-]{1,63}"    //  - only alphanumeric and '-'
+                "(?<!-)"                //  - must not end with '-'
+                "\\."                   // segment separator
+                ")+"                    // 1 or more segments
+                "[A-Za-z]{2,63}"        // TLD
+                "$"                     // End of line
+            , boost::regex_constants::optimize);
+
+        if (!boost::regex_match(d, re))
+            throw std::runtime_error (
+                "The domain field must use the '[host.][subdomain.]domain.tld' format");
+    }
+
+    domain_ = std::move(d);
 }
 
 } // ripple

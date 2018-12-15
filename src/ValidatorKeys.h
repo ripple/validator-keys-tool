@@ -20,6 +20,10 @@
 
 #include <ripple/crypto/KeyType.h>
 #include <ripple/protocol/SecretKey.h>
+#include <boost/optional.hpp>
+#include <cstdint>
+#include <string>
+#include <vector>
 
 namespace boost
 {
@@ -46,8 +50,10 @@ private:
     KeyType keyType_;
     PublicKey publicKey_;
     SecretKey secretKey_;
+    std::vector<std::uint8_t> manifest_;
     std::uint32_t tokenSequence_;
     bool revoked_;
+    std::string domain_;
 
 public:
     explicit
@@ -115,7 +121,7 @@ public:
     @return hex-encoded signature
     */
     std::string
-    sign (std::string const& data);
+    sign (std::string const& data) const;
 
     /** Returns the public key. */
     PublicKey const&
@@ -129,6 +135,28 @@ public:
     revoked () const
     {
         return revoked_;
+    }
+
+    /** Returns the domain associated with this key, if any */
+    std::string
+    domain() const
+    {
+        return domain_;
+    }
+
+    /** Sets the domain associated with this key */
+    void domain(std::string d);
+
+    /** Returns the last manifest we generated for this domain, if available. */
+    std::vector<std::uint8_t> manifest() const
+    {
+        return manifest_;
+    }
+
+    /** Returns the sequence number of the last manifest generated. */
+    std::uint32_t sequence() const
+    {
+        return tokenSequence_;
     }
 };
 

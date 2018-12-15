@@ -20,6 +20,9 @@
 
 #include <ValidatorKeysTool.h>
 #include <ValidatorKeys.h>
+
+#include <ripple/basics/base64.h>
+#include <ripple/basics/StringUtilities.h>
 #include <ripple/beast/core/PlatformConfig.h>
 #include <ripple/beast/core/SemanticVersion.h>
 #include <ripple/beast/unit_test.h>
@@ -113,7 +116,7 @@ void createToken (boost::filesystem::path const& keyFile)
 
     std::cout << "Update rippled.cfg file with these values and restart rippled:\n\n";
     std::cout << "# validator public key: " <<
-        toBase58 (TokenType::NodePublic, keys.publicKey()) << "\n\n";
+              toBase58 (TokenType::NodePublic, keys.publicKey()) << "\n\n";
     std::cout << "[validator_token]\n";
 
     auto const tokenStr = token->toString();
@@ -152,6 +155,94 @@ void createRevocation (boost::filesystem::path const& keyFile)
     std::cout << std::endl;
 }
 
+void attestDomain(ripple::ValidatorKeys const& keys)
+{
+    using namespace ripple;
+
+    if (keys.domain().empty())
+    {
+        std::cout << "No attestation is necessary if no domain is specified!\n";
+        std::cout << "If you have an attestation in your xrpl-ledger.toml\n";
+        std::cout << "you should remove it at this time.\n";
+        return;
+    }
+
+    std::cout << "The domain attestation for validator "
+        << toBase58 (TokenType::NodePublic, keys.publicKey()) << " is:\n\n";
+
+    std::cout << "attestation=\"" << keys.sign (
+        "[domain-attestation-blob:" + keys.domain() + ":" +
+        toBase58(TokenType::NodePublic, keys.publicKey()) + "]") << "\"\n\n";
+
+    std::cout << "You should include it in your xrp-ledger.toml file in the\n";
+    std::cout << "section for this validator.\n";
+}
+
+void attestDomain(boost::filesystem::path const& keyFile)
+{
+    using namespace ripple;
+
+    auto keys = ValidatorKeys::make_ValidatorKeys (keyFile);
+
+    if (keys.revoked())
+        throw std::runtime_error (
+            "Operation error: The specified master key has been revoked!");
+
+    attestDomain(keys);
+}
+
+void setDomain (std::string const& domain,
+    boost::filesystem::path const& keyFile)
+{
+    using namespace ripple;
+
+    auto keys = ValidatorKeys::make_ValidatorKeys (keyFile);
+
+    if (keys.revoked())
+        throw std::runtime_error (
+            "Operation error: The specified master key has been revoked!");
+
+    if (domain == keys.domain())
+    {
+        if(domain.empty())
+            std::cout << "The domain name was already cleared!\n";
+        else
+            std::cout << "The domain name was already set.\n";
+        return;
+    }
+
+    // Set the domain and generate a new token
+    keys.domain(domain);
+    auto const token = keys.createValidatorToken ();
+    if (! token)
+        throw std::runtime_error (
+            "Maximum number of tokens have already been generated.\n"
+            "Revoke validator keys if previous token has been compromised.");
+
+    // Flush to disk
+    keys.writeToFile (keyFile);
+
+    if (domain.empty())
+        std::cout << "The domain name has been cleared.\n";
+    else
+        std::cout << "The domain name has been set to: " << domain << "\n\n";
+    attestDomain(keys);
+
+    std::cout << "\n";
+    std::cout << "You also need to update the rippled.cfg file to add a new\n";
+    std::cout << "validator token and restart rippled:\n\n";
+    std::cout << "# validator public key: " <<
+              toBase58 (TokenType::NodePublic, keys.publicKey()) << "\n\n";
+    std::cout << "[validator_token]\n";
+
+    auto const tokenStr = token->toString();
+    auto const len = 72;
+    for (auto i = 0; i < tokenStr.size(); i += len)
+        std::cout << tokenStr.substr(i, len) << std::endl;
+
+    std::cout << "\n";
+}
+
 void signData (std::string const& data,
     boost::filesystem::path const& keyFile)
 {
@@ -170,6 +261,40 @@ void signData (std::string const& data,
     std::cout << std::endl;
 }
 
+void generateManifest (
+    std::string const& type,
+    boost::filesystem::path const& keyFile)
+{
+    using namespace ripple;
+
+    auto keys = ValidatorKeys::make_ValidatorKeys (keyFile);
+
+    auto const m = keys.manifest();
+
+    if (m.empty())
+    {
+        std::cout << "The last manifest generated is unavailable. You can\n";
+        std::cout << "generate a new one.\n\n";
+        return;
+    }
+
+    if (type == "base64")
+    {
+        std::cout << "Manifest #" << keys.sequence() << " (Base64):\n";
+        std::cout << base64_encode(m.data(), m.size()) << "\n\n";
+        return;
+    }
+
+    if (type == "hex")
+    {
+        std::cout << "Manifest #" << keys.sequence() << " (Hex):\n";
+        std::cout << strHex(makeSlice(m)) << "\n\n";
+        return;
+    }
+
+    std::cout << "Unknown encoding '" << type << "'\n";
+}
+
 int runCommand (std::string const& command,
     std::vector <std::string> const& args,
     boost::filesystem::path const& keyFile)
@@ -180,7 +305,12 @@ int runCommand (std::string const& command,
         { "create_keys", 0 },
         { "create_token", 0 },
         { "revoke_keys", 0 },
-        { "sign", 1 }};
+        { "set_domain", 1 },
+        { "clear_domain", 0 },
+        { "attest_domain", 0 },
+        { "show_manifest", 1 },
+        { "sign", 1 },
+    };
 
     auto const iArgs = commandArgs.find (command);
 
@@ -196,8 +326,16 @@ int runCommand (std::string const& command,
         createToken (keyFile);
     else if (command == "revoke_keys")
         createRevocation (keyFile);
+    else if (command == "set_domain")
+        setDomain (args[0], keyFile);
+    else if (command == "clear_domain")
+        setDomain ("", keyFile);
+    else if (command == "attest_domain")
+        attestDomain (keyFile);
     else if (command == "sign")
         signData (args[0], keyFile);
+    else if (command == "show_manifest")
+        generateManifest (args[0], keyFile);
 
     return 0;
 }
@@ -223,10 +361,14 @@ void printHelp (const boost::program_options::options_description& desc)
         << "validator-keys [options] <command> [<argument> ...]\n"
         << desc << std::endl
         << "Commands: \n"
-           "     create_keys        Generate validator keys.\n"
-           "     create_token       Generate validator token.\n"
-           "     revoke_keys        Revoke validator keys.\n"
-           "     sign <data>        Sign string with validator key.\n";
+           "     create_keys                   Generate validator keys.\n"
+           "     create_token                  Generate validator token.\n"
+           "     revoke_keys                   Revoke validator keys.\n"
+           "     sign <data>                   Sign string with validator key.\n"
+           "     show_manifest [hex|base64]    Displays the last generated manifest\n"
+           "     set_domain <domain>           Associate a domain with the validator key.\n"
+           "     clear_domain                  Disassociate a domain from a validator key.\n"
+           "     attest_domain                 Produce the attestation string for a domain.\n";
 }
 //LCOV_EXCL_STOP
 
