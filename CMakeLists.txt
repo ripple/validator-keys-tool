@@ -9,13 +9,22 @@ project (validator-keys-tool)
   FetchContent.
 #]===========================================]
 find_package(Ripple QUIET)
+
 if (NOT TARGET Ripple::xrpl_core)
-  message(STATUS "Installed rippled not found...using local FC")
+  # rippled_tag is cache string and can be overriden when configuring
+  # with -Drippled_tag=commit_or_tag in order to pick a specific
+  # rippled version to download. Default tag/version is the
+  # value here:
+  set (rippled_tag "1.2.4" CACHE STRING
+    "tag/commit of rippled to fetch from \
+    if a local install is not found")
+  message(STATUS "Installed rippled not found... \
+    using local copy from tag/commit [${rippled_tag}]")
   include (FetchContent)
   FetchContent_Declare(
     rippled_src
     GIT_REPOSITORY https://github.com/ripple/rippled.git
-    GIT_TAG "1.2.4"
+    GIT_TAG ${rippled_tag}
   )
   FetchContent_GetProperties(rippled_src)
   if(NOT rippled_src_POPULATED)

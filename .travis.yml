@@ -1,9 +1,9 @@
 sudo: false
 language: cpp
+dist: xenial
 
 env:
   global:
-    - LLVM_VERSION=3.8.0
     # Maintenance note: to move to a new version
     # of boost, update both BOOST_ROOT and BOOST_URL.
     # Note that for simplicity, BOOST_ROOT's final
@@ -16,15 +16,18 @@ env:
     - APP=validator-keys
     - APP_ARGS=--unittest
     - VERBOSE_BUILD=true
+    - GCC_VER=7
 
 addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
-      - llvm-toolchain-trusty-5.0
+      - llvm-toolchain-xenial-7
     packages:
-      - gcc-5
-      - g++-5
+      - gcc-7
+      - g++-7
+      - gcc-8
+      - g++-8
       - python-software-properties
       - protobuf-compiler
       - libprotobuf-dev
@@ -33,33 +36,40 @@ addons:
       - binutils-gold
       - gdb
       - texinfo
+      - cmake
       - lcov
-      - llvm-5.0
-      - clang-5.0
+      - llvm-7
+      - clang-7
 
 matrix:
   include:
 
     - compiler: gcc
       env:
-      - GCC_VER=5
       - BUILD_TYPE=Debug
       - CMAKE_EXTRA_ARGS=-Dcoverage=ON
 
     - compiler: clang
       env:
-      - GCC_VER=5
       - BUILD_TYPE=Debug
 
     - compiler: gcc
       env:
-      - GCC_VER=5
       - BUILD_TYPE=Release
 
     - compiler: clang
       env:
-      - GCC_VER=5
       - BUILD_TYPE=Release
+
+    - compiler: gcc
+      env:
+      - BUILD_TYPE=Debug
+      - CMAKE_EXTRA_ARGS=-Drippled_tag=master
+
+    - compiler: gcc
+      env:
+      - BUILD_TYPE=Debug
+      - CMAKE_EXTRA_ARGS=-Drippled_tag=develop
 
 cache:
   directories:

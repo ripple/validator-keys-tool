@@ -22,14 +22,6 @@ else
     g++ -v
 fi
 
-pushd /tmp
-CM_INSTALLER=cmake-3.12.3-Linux-x86_64.sh
-wget https://cmake.org/files/v3.12/$CM_INSTALLER
-chmod a+x $CM_INSTALLER
-sudo ./$CM_INSTALLER --prefix=/usr/local --exclude-subdir
-rm -f /tmp/$CM_INSTALLER
-popd
-
 pip install --user requests==2.13.0
 pip install --user https://github.com/codecov/codecov-python/archive/master.zip
 
