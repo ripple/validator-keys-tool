@@ -29,7 +29,7 @@ Alternatively, if you do not have a local installation of rippled development fi
 ### Other dependencies
 
 * C++14 or greater
-* [Boost](http://www.boost.org/) - 1.65+ required
+* [Boost](http://www.boost.org/) - 1.70+ required
 * [OpenSSL](https://www.openssl.org/) 
 * [cmake](https://cmake.org) - 3.11+ required
 

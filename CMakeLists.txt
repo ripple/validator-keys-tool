@@ -15,7 +15,7 @@ if (NOT TARGET Ripple::xrpl_core)
   FetchContent_Declare(
     rippled_src
     GIT_REPOSITORY https://github.com/ripple/rippled.git
-    GIT_TAG "1.2.4"
+    GIT_TAG "1.3.1"
   )
   FetchContent_GetProperties(rippled_src)
   if(NOT rippled_src_POPULATED)
