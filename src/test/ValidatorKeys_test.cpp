@@ -284,12 +284,12 @@ private:
             BEAST_EXPECT(expected[keyType] == signature);
 
             auto const ret = strUnHex (signature);
-            BEAST_EXPECT (ret.second);
-            BEAST_EXPECT (ret.first.size ());
+            BEAST_EXPECT (ret);
+            BEAST_EXPECT (ret->size ());
             BEAST_EXPECT (verify (
                 keys.publicKey(),
                 makeSlice (data),
-                makeSlice (ret.first)));
+                makeSlice (*ret)));
         }
     }
 
