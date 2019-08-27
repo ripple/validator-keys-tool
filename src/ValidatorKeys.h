@@ -70,6 +70,8 @@ public:
         boost::filesystem::path const& keyFile);
 
     ~ValidatorKeys () = default;
+    ValidatorKeys(ValidatorKeys const&) = default;
+    ValidatorKeys& operator=(ValidatorKeys const&) = default;
 
     inline bool
     operator==(ValidatorKeys const& rhs) const
