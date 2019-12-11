@@ -23,43 +23,31 @@
 
 #include <ripple/basics/base64.h>
 #include <ripple/basics/StringUtilities.h>
-#include <ripple/beast/core/PlatformConfig.h>
 #include <ripple/beast/core/SemanticVersion.h>
 #include <ripple/beast/unit_test.h>
 #include <beast/unit_test/dstream.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
-#ifdef BOOST_MSVC
-# ifndef WIN32_LEAN_AND_MEAN // VC_EXTRALEAN
-#  define WIN32_LEAN_AND_MEAN
-#  include <windows.h>
-#  undef WIN32_LEAN_AND_MEAN
-# else
-#  include <windows.h>
-# endif
-#endif
+#include <boost/preprocessor/stringize.hpp>
 
 //------------------------------------------------------------------------------
-char const* const versionString =
-
-    //--------------------------------------------------------------------------
-    //  The build version number. You must edit this for each release
-    //  and follow the format described at http://semver.org/
-    //
-        "0.3.0"
+//  The build version number. You must edit this for each release
+//  and follow the format described at http://semver.org/
+//--------------------------------------------------------------------------
+char const* const versionString = "0.3.0"
 
 #if defined(DEBUG) || defined(SANITIZER)
-       "+"
+    "+"
 #ifdef DEBUG
-        "DEBUG"
+    "DEBUG"
 #ifdef SANITIZER
-        "."
+    "."
 #endif
 #endif
 
 #ifdef SANITIZER
-        BEAST_PP_STR1_(SANITIZER)
+    BOOST_PP_STRINGIZE(SANITIZER)
 #endif
 #endif
 
@@ -387,18 +375,6 @@ getVersionString ()
 
 int main (int argc, char** argv)
 {
-#if defined(__GNUC__) && !defined(__clang__)
-    auto constexpr gccver = (__GNUC__ * 100 * 100) +
-                            (__GNUC_MINOR__ * 100) +
-                            __GNUC_PATCHLEVEL__;
-
-    static_assert (gccver >= 50100,
-        "GCC version 5.1.0 or later is required to compile validator-keys.");
-#endif
-
-    static_assert (BOOST_VERSION >= 105700,
-        "Boost version 1.57 or later is required to compile validator-keys");
-
     namespace po = boost::program_options;
 
     po::variables_map vm;
