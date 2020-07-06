@@ -31,3 +31,4 @@
 # Ignore build files
 build
 .nih_c
+.vs
