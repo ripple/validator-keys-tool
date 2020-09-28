@@ -31,6 +31,10 @@
 #include <boost/program_options.hpp>
 #include <boost/preprocessor/stringize.hpp>
 
+#ifdef BOOST_MSVC
+#include <Windows.h>
+#endif
+
 //------------------------------------------------------------------------------
 //  The build version number. You must edit this for each release
 //  and follow the format described at http://semver.org/
