@@ -3,6 +3,7 @@
 #]===================================================================]
 
 if (NOT ep_procs)
+  include(ProcessorCount)
   ProcessorCount(ep_procs)
   if (ep_procs GREATER 1)
     # never use more than half of cores for EP builds
