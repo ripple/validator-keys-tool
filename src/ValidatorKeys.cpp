@@ -176,6 +176,19 @@ ValidatorKeys::make_ValidatorKeys (
             std::back_inserter(vk.manifest_));
     }
 
+    if (jKeys.isMember("account_address"))
+    {
+        if (!jKeys["account_address"].isString() ||
+            toBase58(calcAccountID(vk.publicKey())) !=
+            jKeys["account_address"])
+        {
+            throw std::runtime_error(
+                    "Key file '" + keyFile.string() +
+                    "' contains invalid \"account_address\" field: " +
+                    jKeys["account_address"].toStyledString());
+        }
+    }
+
     return vk;
 }
 
@@ -195,6 +208,7 @@ ValidatorKeys::writeToFile (
         jv["domain"] = domain_;
     if (!manifest_.empty())
         jv["manifest"] = strHex(makeSlice(manifest_));
+    jv["account_address"] = toBase58(calcAccountID(publicKey_));
 
     if (! keyFile.parent_path().empty())
     {
