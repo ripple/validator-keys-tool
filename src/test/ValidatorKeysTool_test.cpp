@@ -121,11 +121,11 @@ private:
         }
         {
             auto const keyType = KeyType::ed25519;
-            auto const kp = generateKeyPair (keyType, randomSeed ());
+            auto const seed = randomSeed ();
 
             auto keys = ValidatorKeys (
                 keyType,
-                kp.second,
+                seed,
                 std::numeric_limits<std::uint32_t>::max () - 1);
 
             keys.writeToFile (keyFile);

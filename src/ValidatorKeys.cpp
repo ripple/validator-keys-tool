@@ -44,24 +44,26 @@ ValidatorToken::toString () const
 
 ValidatorKeys::ValidatorKeys (KeyType const& keyType)
     : keyType_ (keyType)
+    , seed_(randomSeed())
     , tokenSequence_ (0)
     , revoked_ (false)
 {
     std::tie (publicKey_, secretKey_) = generateKeyPair (
-        keyType_, randomSeed ());
+        keyType_, seed_);
 }
 
 ValidatorKeys::ValidatorKeys (
     KeyType const& keyType,
-    SecretKey const& secretKey,
+    Seed const& seed,
     std::uint32_t tokenSequence,
     bool revoked)
     : keyType_ (keyType)
-    , secretKey_ (secretKey)
+    , seed_ (seed)
     , tokenSequence_ (tokenSequence)
     , revoked_ (revoked)
 {
-    publicKey_ = derivePublicKey(keyType_, secretKey_);
+    std::tie (publicKey_, secretKey_) = generateKeyPair (
+        keyType_, seed_);
 }
 
 ValidatorKeys
@@ -84,7 +86,7 @@ ValidatorKeys::make_ValidatorKeys (
 
     static std::array<std::string, 4> const requiredFields {{
         "key_type",
-        "secret_key",
+        "seed",
         "token_sequence",
         "revoked"
     }};
@@ -108,15 +110,14 @@ ValidatorKeys::make_ValidatorKeys (
             jKeys["key_type"].toStyledString());
     }
 
-    auto const secret = parseBase58<SecretKey> (
-        TokenType::NodePrivate, jKeys["secret_key"].asString());
+    auto const seed = parseBase58<Seed>(jKeys["seed"].asString());
 
-    if (! secret)
+    if (! seed)
     {
         throw std::runtime_error (
             "Key file '" + keyFile.string() +
-            "' contains invalid \"secret_key\" field: " +
-            jKeys["secret_key"].toStyledString());
+            "' contains invalid \"seed\" field: " +
+            jKeys["seed"].toStyledString());
     }
 
     std::uint32_t tokenSequence;
@@ -141,7 +142,7 @@ ValidatorKeys::make_ValidatorKeys (
             jKeys["revoked"].toStyledString());
 
     ValidatorKeys vk(
-        *keyType, *secret, tokenSequence, jKeys["revoked"].asBool());
+        *keyType, *seed, tokenSequence, jKeys["revoked"].asBool());
 
     if (jKeys.isMember("domain"))
     {
@@ -189,6 +190,31 @@ ValidatorKeys::make_ValidatorKeys (
         }
     }
 
+    if (jKeys.isMember("secret_key"))
+    {
+        if (!jKeys["secret_key"].isString() ||
+            toBase58(TokenType::NodePrivate, vk.secretKey()) !=
+            jKeys["secret_key"])
+        {
+            throw std::runtime_error (
+                    "Key file '" + keyFile.string() +
+                    "' contains invalid \"secret_key\" field: " +
+                    jKeys["secret_key"].toStyledString());
+        }
+    }
+
+    if (jKeys.isMember("account_public_key"))
+    {
+        if (!jKeys["account_public_key"].isString() ||
+            toBase58(TokenType::AccountPublic, vk.publicKey()) !=
+            jKeys["account_public_key"])
+        {
+            throw std::runtime_error(
+                    "Key file '" + keyFile.string() +
+                    "' contains invalid \"account_public_key\" field: " +
+                    jKeys["account_public_key"].toStyledString());
+        }
+    }
     return vk;
 }
 
@@ -202,6 +228,7 @@ ValidatorKeys::writeToFile (
     jv["key_type"] = to_string(keyType_);
     jv["public_key"] = toBase58(TokenType::NodePublic, publicKey_);
     jv["secret_key"] = toBase58(TokenType::NodePrivate, secretKey_);
+    jv["seed"] = toBase58(seed_);
     jv["token_sequence"] = Json::UInt (tokenSequence_);
     jv["revoked"] = revoked_;
     if (!domain_.empty())
@@ -209,6 +236,7 @@ ValidatorKeys::writeToFile (
     if (!manifest_.empty())
         jv["manifest"] = strHex(makeSlice(manifest_));
     jv["account_address"] = toBase58(calcAccountID(publicKey_));
+    jv["account_public_key"] = toBase58(TokenType::AccountPublic, publicKey_);
 
     if (! keyFile.parent_path().empty())
     {

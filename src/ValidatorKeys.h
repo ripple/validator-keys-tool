@@ -20,6 +20,7 @@
 
 #include <ripple/protocol/KeyType.h>
 #include <ripple/protocol/SecretKey.h>
+#include <ripple/protocol/Seed.h>
 #include <boost/optional.hpp>
 #include <cstdint>
 #include <string>
@@ -50,6 +51,7 @@ private:
     KeyType keyType_;
     PublicKey publicKey_;
     SecretKey secretKey_;
+    Seed seed_;
     std::vector<std::uint8_t> manifest_;
     std::uint32_t tokenSequence_;
     bool revoked_;
@@ -62,7 +64,7 @@ public:
 
     ValidatorKeys (
         KeyType const& keyType,
-        SecretKey const& secretKey,
+        Seed const& seed,
         std::uint32_t sequence,
         bool revoked = false);
 
@@ -128,6 +130,13 @@ public:
     publicKey () const
     {
         return publicKey_;
+    }
+
+    /** Returns the secret key. */
+    SecretKey const&
+    secretKey () const
+    {
+        return secretKey_;
     }
 
     /** Returns true if keys are revoked. */

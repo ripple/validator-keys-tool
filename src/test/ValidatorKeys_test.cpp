@@ -32,7 +32,7 @@ class ValidatorKeys_test : public beast::unit_test::suite
 {
 private:
 
-    void
+    bool
     testKeyFile (boost::filesystem::path const& keyFile,
         Json::Value const& jv, std::string const& expectedError)
     {
@@ -44,9 +44,9 @@ private:
 
         try {
             ValidatorKeys::make_ValidatorKeys (keyFile);
-            BEAST_EXPECT(expectedError.empty());
+            return expectedError.empty();
         } catch (std::runtime_error& e) {
-            BEAST_EXPECT(e.what() == expectedError);
+            return e.what() == expectedError;
         }
     }
 
@@ -110,66 +110,61 @@ private:
             jv["dummy"] = "field";
             expectedError = "Key file '" + keyFile.string() +
                 "' is missing \"key_type\" field";
-            testKeyFile (keyFile, jv, expectedError);
+            BEAST_EXPECT(testKeyFile (keyFile, jv, expectedError));
 
             jv["key_type"] = "dummy keytype";
             expectedError = "Key file '" + keyFile.string() +
-                "' is missing \"secret_key\" field";
-            testKeyFile (keyFile, jv, expectedError);
+                "' is missing \"seed\" field";
+            BEAST_EXPECT(testKeyFile (keyFile, jv, expectedError));
 
-            jv["secret_key"] = "dummy secret";
+            jv["seed"] = "dummy seed";
             expectedError = "Key file '" + keyFile.string() +
                 "' is missing \"token_sequence\" field";
-            testKeyFile (keyFile, jv, expectedError);
+            BEAST_EXPECT(testKeyFile (keyFile, jv, expectedError));
 
             jv["token_sequence"] = "dummy sequence";
             expectedError = "Key file '" + keyFile.string() +
                 "' is missing \"revoked\" field";
-            testKeyFile (keyFile, jv, expectedError);
+            BEAST_EXPECT(testKeyFile (keyFile, jv, expectedError));
 
             jv["revoked"] = "dummy revoked";
             expectedError = "Key file '" + keyFile.string() +
                 "' contains invalid \"key_type\" field: " +
                 jv["key_type"].toStyledString();
-            testKeyFile (keyFile, jv, expectedError);
+            BEAST_EXPECT(testKeyFile (keyFile, jv, expectedError));
 
             auto const keyType = KeyType::ed25519;
             jv["key_type"] = to_string(keyType);
             expectedError = "Key file '" + keyFile.string() +
-                "' contains invalid \"secret_key\" field: " +
-                jv["secret_key"].toStyledString();
-            testKeyFile (keyFile, jv, expectedError);
+                "' contains invalid \"seed\" field: " +
+                jv["seed"].toStyledString();
+            BEAST_EXPECT(testKeyFile (keyFile, jv, expectedError));
 
-            ValidatorKeys const keys (keyType);
-            {
-                auto const kp = generateKeyPair (keyType, randomSeed ());
-                jv["secret_key"] =
-                    toBase58(TokenType::NodePrivate, kp.second);
-            }
+            jv["seed"] = toBase58(randomSeed ());
             expectedError = "Key file '" + keyFile.string() +
                 "' contains invalid \"token_sequence\" field: " +
                 jv["token_sequence"].toStyledString();
-            testKeyFile (keyFile, jv, expectedError);
+            BEAST_EXPECT(testKeyFile (keyFile, jv, expectedError));
 
             jv["token_sequence"] = -1;
             expectedError = "Key file '" + keyFile.string() +
                 "' contains invalid \"token_sequence\" field: " +
                 jv["token_sequence"].toStyledString();
-            testKeyFile (keyFile, jv, expectedError);
+            BEAST_EXPECT(testKeyFile (keyFile, jv, expectedError));
 
             jv["token_sequence"] =
                 Json::UInt(std::numeric_limits<std::uint32_t>::max ());
             expectedError = "Key file '" + keyFile.string() +
                 "' contains invalid \"revoked\" field: " +
                 jv["revoked"].toStyledString();
-            testKeyFile (keyFile, jv, expectedError);
+            BEAST_EXPECT(testKeyFile (keyFile, jv, expectedError));
 
             jv["revoked"] = false;
             expectedError = "";
-            testKeyFile (keyFile, jv, expectedError);
+            BEAST_EXPECT(testKeyFile (keyFile, jv, expectedError));
 
             jv["revoked"] = true;
-            testKeyFile (keyFile, jv, expectedError);
+            BEAST_EXPECT(testKeyFile (keyFile, jv, expectedError));
         }
     }
 
@@ -217,11 +212,11 @@ private:
         }
 
         auto const keyType = KeyType::ed25519;
-        auto const kp = generateKeyPair (keyType, randomSeed ());
+        auto const seed = randomSeed ();
 
         auto keys = ValidatorKeys (
             keyType,
-            kp.second,
+            seed,
             std::numeric_limits<std::uint32_t>::max () - 1);
 
         BEAST_EXPECT (! keys.createValidatorToken (keyType));
@@ -268,21 +263,20 @@ private:
             { KeyType::ed25519, "2EE541D6825791BF5454C571D2B363EAB3F01C73159B1F"
                 "237AC6D38663A82B9D5EAD262D5F776B916E68247A1F082090F3BAE7ABC939"
                 "C8F29B0DC759FD712300" },
-            { KeyType::secp256k1, "3045022100F142C27BF83D8D4541C7A4E759DE64A672"
-                "51A388A422DFDA6F4B470A2113ABC4022002DA56695F3A805F62B55E7CC8D5"
-                "55438D64A229CD0B4BA2AE33402443B20409" }
+            { KeyType::secp256k1, "3044022006DC4322D370F25AFE4A4084C245883BC1C0"
+                 "A5EB273E91D5C727C4F883616EE902200ED46378BE3DF0A31424ACE5EB3488"
+                 "5919DFE82FEA0C31E7F3FB88ADB9163B9A" }//TODO ask Ed
         });
 
         std::string const data = "data to sign";
 
         for (auto const keyType : keyTypes)
         {
-            auto const sk = generateSecretKey(keyType, generateSeed("test"));
-            ValidatorKeys keys (keyType, sk, 1);
+            auto const seed = generateSeed("test");
+            ValidatorKeys keys (keyType, seed, 1);
 
             auto const signature = keys.sign (data);
             BEAST_EXPECT(expected[keyType] == signature);
-
             auto const ret = strUnHex (signature);
             BEAST_EXPECT (ret);
             BEAST_EXPECT (ret->size ());
