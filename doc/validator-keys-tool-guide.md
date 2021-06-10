@@ -69,9 +69,10 @@ If a validator private key is compromised, the key must be revoked permanently.
 To revoke the validator key, use the `validator-keys` tool to generate a
 revocation, which indicates to other servers that the key is no longer valid:
 
-```
+```validator public key: r4iKhWgGGUH1VYLXcnGExre1LJEoVUK2Jx
+
   $ validator-keys revoke_keys
-```
+```r4iKhWgGGUH1VYLXcnGExre1LJEoVUK2Jx 
 
 Sample output:
 
@@ -80,7 +81,7 @@ Sample output:
 
   Update rippled.cfg file with these values and restart rippled:
 
-  # validator public key: nHUtNnLVx7odrz5dnfb2xpIgbEeJPbzJWfdicSkGyVw1eE5GpjQr
+  # validator public key: r4iKhWgGGUH1VYLXcnGExre1LJEoVUK2Jx
 
   [validator_key_revocation]
   JP////9xIe0hvssbqmgzFH4/NDp1z|3ShkmCtFXuC5A0IUocppHopnASQN2MuMD1Puoyjvnr
@@ -95,11 +96,11 @@ a corresponding [validator token](#validator-token).
 
 The `validator-keys` tool can be used to sign arbitrary data with the validator
 key.
-
+rsrf6VSSMujZw5d5moNd7fYezXi31auoX2
 ```
   $ validator-keys sign "your data to sign"
 ```
-
+9A5643FB3A15FD280FFF4DFA01C46EBAA3B48264AF04A789F1CA80F2F7B92C75
 Sample output:
 
 ```
