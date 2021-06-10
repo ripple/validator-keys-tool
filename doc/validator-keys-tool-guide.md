@@ -49,7 +49,7 @@ Sample output:
 ```
   Update rippled.cfg file with these values:
 
-  # validator public key: nHUtNnLVx7odrz5dnfb2xpIgbEeJPbzJWfdicSkGyVw1eE5GpjQr
+  # validator public key: rsrf6VSSMujZw5d5moNd7fYezXi31auoX2
 
   [validator_token]
   eyJ2YWxpZGF0aW9uX3NlY3J|dF9rZXkiOiI5ZWQ0NWY4NjYyNDFjYzE4YTI3NDdiNT
@@ -80,14 +80,14 @@ revocation, which indicates to other servers that the key is no longer valid:
   $ validator-keys revoke_keys
 ```
 
-Sample output:
+Sample output:rDxoj2YtjDkn9nLdotpZcMzupJvmk3wNNF 
 
 ```
   WARNING: This will revoke your validator keys!
 
   Update rippled.cfg file with these values and restart rippled:
 
-  # validator public key: nHUtNnLVx7odrz5dnfb2xpIgbEeJPbzJWfdicSkGyVw1eE5GpjQr
+  # validator public key: rsrf6VSSMujZw5d5moNd7fYezXi31auoX2
 
   [validator_key_revocation]
   JP////9xIe0hvssbqmgzFH4/NDp1z|3ShkmCtFXuC5A0IUocppHopnASQN2MuMD1Puoyjvnr
@@ -107,8 +107,8 @@ key.
   $ validator-keys sign "your data to sign"
 ```
 
-Sample output:
+Sample output:rDxoj2YtjDkn9nLdotpZcMzupJvmk3wNNF 
 
 ```
-  B91B73536235BBA028D344B81DBCBECF19C1E0034AC21FB51C2351A138C9871162F3193D7C41A49FB7AABBC32BC2B116B1D5701807BE462D8800B5AEA4F0550D
+  rDxoj2YtjDkn9nLdotpZcMzupJvmk3wNNF
 ```
