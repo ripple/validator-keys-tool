@@ -25,7 +25,7 @@
 #include <ripple/basics/StringUtilities.h>
 #include <ripple/beast/core/SemanticVersion.h>
 #include <ripple/beast/unit_test.h>
-#include <beast/unit_test/dstream.hpp>
+#include <ripple/beast/unit_test/dstream.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
