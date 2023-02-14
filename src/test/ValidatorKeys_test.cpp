@@ -62,7 +62,7 @@ private:
         using namespace boost::filesystem;
 
         std::string const subdir = "test_key_file";
-        path const keyFile = subdir / "validator_keys.json";
+        path const keyFile = subdir + "validator_keys.json";
 
         for (auto const keyType : keyTypes)
         {
@@ -305,7 +305,7 @@ private:
 
         {
             std::string const subdir = "test_key_file";
-            path const keyFile = subdir / "validator_keys.json";
+            path const keyFile = subdir + "validator_keys.json";
             KeyFileGuard g (*this, subdir);
 
             keys.writeToFile (keyFile);
@@ -341,7 +341,7 @@ private:
             // Create key file directory
             std::string const subdir = "test_key_file";
             path const keyFile =
-                subdir / "directories/to/create/validator_keys.json";
+                subdir + "directories/to/create/validator_keys.json";
             KeyFileGuard g (*this, subdir);
 
             keys.writeToFile (keyFile);
@@ -355,7 +355,7 @@ private:
             std::string const subdir = "test_key_file";
             KeyFileGuard g (*this, subdir);
 
-            path const badKeyFile = subdir / ".";
+            path const badKeyFile = subdir + ".";
             auto expectedError = "Cannot open key file: " + badKeyFile.string();
             std::string error;
             try {
@@ -366,7 +366,7 @@ private:
             BEAST_EXPECT(error == expectedError);
 
             // Fail if parent directory is existing file
-            path const keyFile = subdir / "validator_keys.json";
+            path const keyFile = subdir + "validator_keys.json";
             keys.writeToFile (keyFile);
             path const conflictingPath =
                 keyFile / "validators_keys.json";

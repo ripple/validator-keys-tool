@@ -59,7 +59,7 @@ private:
 
         std::string const subdir = "test_key_file";
         KeyFileGuard const g (*this, subdir);
-        path const keyFile = subdir / "validator_keys.json";
+        path const keyFile = subdir + "validator_keys.json";
 
         createKeyFile (keyFile);
         BEAST_EXPECT(exists(keyFile));
@@ -90,7 +90,7 @@ private:
 
         std::string const subdir = "test_key_file";
         KeyFileGuard const g (*this, subdir);
-        path const keyFile = subdir / "validator_keys.json";
+        path const keyFile = subdir + "validator_keys.json";
 
         auto testToken = [this](
             path const& keyFile,
@@ -154,7 +154,7 @@ private:
 
         std::string const subdir = "test_key_file";
         KeyFileGuard const g (*this, subdir);
-        path const keyFile = subdir / "validator_keys.json";
+        path const keyFile = subdir + "validator_keys.json";
 
         auto expectedError =
             "Failed to open key file: " + keyFile.string();
@@ -203,7 +203,7 @@ private:
 
         std::string const subdir = "test_key_file";
         KeyFileGuard const g (*this, subdir);
-        path const keyFile = subdir / "validator_keys.json";
+        path const keyFile = subdir + "validator_keys.json";
 
         {
             std::string const expectedError =
@@ -238,7 +238,7 @@ private:
 
         std::string const subdir = "test_key_file";
         KeyFileGuard g (*this, subdir);
-        path const keyFile = subdir / "validator_keys.json";
+        path const keyFile = subdir + "validator_keys.json";
 
         auto testCommand = [this](
             std::string const& command,
