@@ -39,7 +39,7 @@ if (NOT has_parent)
 
     # rippled_tag is cache string and can be overriden when configuring
     # with -Drippled_tag=commit_or_tag in order to pick a specific
-    # rippled version to download. Default tag is develop/master/release as 
+    # rippled version to download. Default tag is develop/master/release as
     # determined by the branch of this project
     if (NOT (_branch STREQUAL "master" OR _branch STREQUAL "release"))
       set (rippled_tag "develop" CACHE STRING
@@ -74,7 +74,7 @@ include(KeysInterface)
 add_executable (validator-keys
   src/ValidatorKeys.cpp
   src/ValidatorKeysTool.cpp
-  ## UNIT TESTS:
+  # UNIT TESTS:
   src/test/ValidatorKeys_test.cpp
   src/test/ValidatorKeysTool_test.cpp)
 target_include_directories (validator-keys PRIVATE src)
@@ -84,6 +84,3 @@ if (has_parent)
   set_target_properties (validator-keys PROPERTIES EXCLUDE_FROM_ALL ON)
   set_target_properties (validator-keys PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD ON)
 endif ()
-
-
-
