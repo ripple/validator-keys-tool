@@ -61,14 +61,14 @@ private:
 
         using namespace boost::filesystem;
 
-        std::string const subdir = "test_key_file";
-        path const keyFile = subdir + "validator_keys.json";
+        path const subdir = "test_key_file";
+        path const keyFile = subdir / "validator_keys.json";
 
         for (auto const keyType : keyTypes)
         {
             ValidatorKeys const keys (keyType);
 
-            KeyFileGuard const g (*this, subdir);
+            KeyFileGuard const g (*this, subdir.string());
 
             keys.writeToFile (keyFile);
             BEAST_EXPECT (exists (keyFile));
@@ -78,7 +78,7 @@ private:
         }
         {
             // Require expected fields
-            KeyFileGuard g (*this, subdir);
+            KeyFileGuard g (*this, subdir.string());
 
             auto expectedError =
                 "Failed to open key file: " + keyFile.string();
@@ -304,9 +304,9 @@ private:
         ValidatorKeys keys (keyType);
 
         {
-            std::string const subdir = "test_key_file";
-            path const keyFile = subdir + "validator_keys.json";
-            KeyFileGuard g (*this, subdir);
+            path const subdir = "test_key_file";
+            path const keyFile = subdir / "validator_keys.json";
+            KeyFileGuard g (*this, subdir.string());
 
             keys.writeToFile (keyFile);
             BEAST_EXPECT(exists (keyFile));
@@ -339,10 +339,10 @@ private:
         }
         {
             // Create key file directory
-            std::string const subdir = "test_key_file";
+            path const subdir = "test_key_file";
             path const keyFile =
-                subdir + "directories/to/create/validator_keys.json";
-            KeyFileGuard g (*this, subdir);
+                subdir / "directories/to/create/validator_keys.json";
+            KeyFileGuard g (*this, subdir.string());
 
             keys.writeToFile (keyFile);
             BEAST_EXPECT(exists (keyFile));
@@ -352,8 +352,8 @@ private:
         }
         {
             // Fail if file cannot be opened for write
-            std::string const subdir = "test_key_file";
-            KeyFileGuard g (*this, subdir);
+            path const subdir = "test_key_file";
+            KeyFileGuard g (*this, subdir.string());
 
             path const badKeyFile = subdir + ".";
             auto expectedError = "Cannot open key file: " + badKeyFile.string();

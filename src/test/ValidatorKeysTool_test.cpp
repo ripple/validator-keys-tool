@@ -57,9 +57,9 @@ private:
 
         using namespace boost::filesystem;
 
-        std::string const subdir = "test_key_file";
-        KeyFileGuard const g (*this, subdir);
-        path const keyFile = subdir + "validator_keys.json";
+        path const subdir = "test_key_file";
+        KeyFileGuard const g (*this, subdir.string());
+        path const keyFile = subdir / "validator_keys.json";
 
         createKeyFile (keyFile);
         BEAST_EXPECT(exists(keyFile));
@@ -88,9 +88,9 @@ private:
 
         using namespace boost::filesystem;
 
-        std::string const subdir = "test_key_file";
-        KeyFileGuard const g (*this, subdir);
-        path const keyFile = subdir + "validator_keys.json";
+        path const subdir = "test_key_file";
+        KeyFileGuard const g (*this, subdir.string());
+        path const keyFile = subdir / "validator_keys.json";
 
         auto testToken = [this](
             path const& keyFile,
@@ -152,9 +152,9 @@ private:
 
         using namespace boost::filesystem;
 
-        std::string const subdir = "test_key_file";
-        KeyFileGuard const g (*this, subdir);
-        path const keyFile = subdir + "validator_keys.json";
+        path const subdir = "test_key_file";
+        KeyFileGuard const g (*this, subdir.string());
+        path const keyFile = subdir / "validator_keys.json";
 
         auto expectedError =
             "Failed to open key file: " + keyFile.string();
@@ -201,9 +201,9 @@ private:
 
         std::string const data = "data to sign";
 
-        std::string const subdir = "test_key_file";
-        KeyFileGuard const g (*this, subdir);
-        path const keyFile = subdir + "validator_keys.json";
+        path const subdir = "test_key_file";
+        KeyFileGuard const g (*this, subdir.string());
+        path const keyFile = subdir / "validator_keys.json";
 
         {
             std::string const expectedError =
@@ -236,9 +236,9 @@ private:
 
         using namespace boost::filesystem;
 
-        std::string const subdir = "test_key_file";
-        KeyFileGuard g (*this, subdir);
-        path const keyFile = subdir + "validator_keys.json";
+        path const subdir = "test_key_file";
+        KeyFileGuard g (*this, subdir.string());
+        path const keyFile = subdir / "validator_keys.json";
 
         auto testCommand = [this](
             std::string const& command,
