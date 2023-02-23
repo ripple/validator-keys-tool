@@ -355,7 +355,7 @@ private:
             path const subdir = "test_key_file";
             KeyFileGuard g (*this, subdir.string());
 
-            path const badKeyFile = subdir + ".";
+            path const badKeyFile = subdir / ".";
             auto expectedError = "Cannot open key file: " + badKeyFile.string();
             std::string error;
             try {
@@ -366,7 +366,7 @@ private:
             BEAST_EXPECT(error == expectedError);
 
             // Fail if parent directory is existing file
-            path const keyFile = subdir + "validator_keys.json";
+            path const keyFile = subdir / "validator_keys.json";
             keys.writeToFile (keyFile);
             path const conflictingPath =
                 keyFile / "validators_keys.json";
