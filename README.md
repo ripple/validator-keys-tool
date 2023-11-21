@@ -22,7 +22,7 @@ cd .build
 conan install .. --output-folder . --build missing
 cmake -DCMAKE_TOOLCHAIN_FILE:FILEPATH=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build .
-./validator-keys
+./validator-keys --unittest # or ctest --test-dir .
 ```
 
 
