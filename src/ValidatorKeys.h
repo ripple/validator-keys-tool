@@ -48,8 +48,18 @@ class ValidatorKeys
 {
 private:
     KeyType keyType_;
-    PublicKey publicKey_;
-    SecretKey secretKey_;
+
+    // struct used to contain both public and secret keys
+    struct Keys {
+      PublicKey publicKey;
+      SecretKey secretKey;
+
+      Keys() = delete;
+      Keys(std::pair<PublicKey, SecretKey> p)
+          : publicKey(p.first), secretKey(p.second)
+    };
+
+    Keys keys_;
     std::vector<std::uint8_t> manifest_;
     std::uint32_t tokenSequence_;
     bool revoked_;
@@ -83,10 +93,9 @@ public:
     operator==(ValidatorKeys const& rhs) const
     {
         // TODO Compare secretKey_
-        return revoked_ == rhs.revoked_ &&
-            keyType_ == rhs.keyType_ &&
-            tokenSequence_ == rhs.tokenSequence_ &&
-            publicKey_ == rhs.publicKey_;
+        return revoked_ == rhs.revoked_ && keyType_ == rhs.keyType_ &&
+               tokenSequence_ == rhs.tokenSequence_ &&
+               keys_.publicKey == rhs.keys_.publicKey;
     }
 
     /** Write keys to JSON file
@@ -124,11 +133,7 @@ public:
     sign (std::string const& data) const;
 
     /** Returns the public key. */
-    PublicKey const&
-    publicKey () const
-    {
-        return publicKey_;
-    }
+    PublicKey const &publicKey() const { return keys_.publicKey; }
 
     /** Returns true if keys are revoked. */
     bool
