@@ -25,7 +25,6 @@
 #include <ripple/basics/StringUtilities.h>
 #include <ripple/beast/core/SemanticVersion.h>
 #include <ripple/beast/unit_test.h>
-#include <ripple/beast/unit_test/dstream.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
@@ -61,8 +60,7 @@ char const* const versionString = "0.3.2"
 static int runUnitTests ()
 {
     using namespace beast::unit_test;
-    beast::unit_test::dstream dout{std::cout};
-    reporter r{dout};
+    reporter r;
     bool const anyFailed = r.run_each(global_suites());
     if(anyFailed)
         return EXIT_FAILURE;    //LCOV_EXCL_LINE
