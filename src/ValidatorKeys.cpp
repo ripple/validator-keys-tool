@@ -46,9 +46,9 @@ ValidatorKeys::ValidatorKeys (KeyType const& keyType)
     : keyType_ (keyType)
     , tokenSequence_ (0)
     , revoked_ (false)
+    , publicKey_ (generateKeyPair (keyType_, randomSeed ()).first)
+    , secretKey_ (generateKeyPair (keyType_, randomSeed ()).second)
 {
-    std::tie (publicKey_, secretKey_) = generateKeyPair (
-        keyType_, randomSeed ());
 }
 
 ValidatorKeys::ValidatorKeys (
@@ -60,8 +60,8 @@ ValidatorKeys::ValidatorKeys (
     , secretKey_ (secretKey)
     , tokenSequence_ (tokenSequence)
     , revoked_ (revoked)
+    , publicKey_ (derivePublicKey(keyType_, secretKey_))
 {
-    publicKey_ = derivePublicKey(keyType_, secretKey_);
 }
 
 ValidatorKeys
