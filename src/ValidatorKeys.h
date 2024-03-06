@@ -89,13 +89,11 @@ public:
     ValidatorKeys(ValidatorKeys const&) = default;
     ValidatorKeys& operator=(ValidatorKeys const&) = default;
 
-    inline bool
-    operator==(ValidatorKeys const& rhs) const
-    {
-        // TODO Compare secretKey_
-        return revoked_ == rhs.revoked_ && keyType_ == rhs.keyType_ &&
-               tokenSequence_ == rhs.tokenSequence_ &&
-               keys_.publicKey == rhs.keys_.publicKey;
+    inline bool operator==(ValidatorKeys const &rhs) const {
+      return revoked_ == rhs.revoked_ && keyType_ == rhs.keyType_ &&
+             tokenSequence_ == rhs.tokenSequence_ &&
+             keys_.publicKey == rhs.keys_.publicKey &&
+             keys_.secretKey == rhs.keys_.secretKey;
     }
 
     /** Write keys to JSON file
