@@ -51,11 +51,11 @@ private:
 
     // struct used to contain both public and secret keys
     struct Keys {
-      PublicKey publicKey;
-      SecretKey secretKey;
+        PublicKey publicKey;
+        SecretKey secretKey;
 
-      Keys() = delete;
-      Keys(std::pair<PublicKey, SecretKey> p)
+        Keys() = delete;
+        Keys(std::pair<PublicKey, SecretKey> p)
           : publicKey(p.first), secretKey(p.second) {}
     };
 
@@ -90,7 +90,7 @@ public:
     ValidatorKeys& operator=(ValidatorKeys const&) = default;
 
     inline bool operator==(ValidatorKeys const &rhs) const {
-      return revoked_ == rhs.revoked_ && keyType_ == rhs.keyType_ &&
+        return revoked_ == rhs.revoked_ && keyType_ == rhs.keyType_ &&
              tokenSequence_ == rhs.tokenSequence_ &&
              keys_.publicKey == rhs.keys_.publicKey &&
              keys_.secretKey == rhs.keys_.secretKey;
@@ -131,7 +131,10 @@ public:
     sign (std::string const& data) const;
 
     /** Returns the public key. */
-    PublicKey const &publicKey() const { return keys_.publicKey; }
+    PublicKey const& publicKey() const
+    {
+        return keys_.publicKey;
+    }
 
     /** Returns true if keys are revoked. */
     bool

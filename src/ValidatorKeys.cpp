@@ -43,8 +43,13 @@ ValidatorToken::toString () const
 }
 
 ValidatorKeys::ValidatorKeys(KeyType const &keyType)
-    : keyType_(keyType), tokenSequence_(0), revoked_(false),
-      keys_(generateKeyPair(keyType_, randomSeed())) {}
+    : keyType_(keyType)
+    , tokenSequence_(0)
+    , revoked_(false)
+    , keys_(generateKeyPair(keyType_, randomSeed()))
+    {
+    }
+
 
 ValidatorKeys::ValidatorKeys (
     KeyType const& keyType,
@@ -270,8 +275,7 @@ ValidatorKeys::revoke ()
 std::string
 ValidatorKeys::sign (std::string const& data) const
 {
-  return strHex(
-      ripple::sign(keys_.publicKey, keys_.secretKey, makeSlice(data)));
+    return strHex(ripple::sign(keys_.publicKey, keys_.secretKey, makeSlice(data)));
 }
 
 void
