@@ -9,7 +9,6 @@ project(validator-keys-tool)
   FetchContent.
 #]===========================================]
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-include(KeysNIH)
 
 get_directory_property(has_parent PARENT_DIRECTORY)
 
