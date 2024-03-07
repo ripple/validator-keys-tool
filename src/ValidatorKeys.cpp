@@ -42,14 +42,14 @@ ValidatorToken::toString () const
     return ripple::base64_encode(to_string(jv));
 }
 
-ValidatorKeys::ValidatorKeys (KeyType const& keyType)
-    : keyType_ (keyType)
-    , tokenSequence_ (0)
-    , revoked_ (false)
-{
-    std::tie (publicKey_, secretKey_) = generateKeyPair (
-        keyType_, randomSeed ());
-}
+ValidatorKeys::ValidatorKeys(KeyType const &keyType)
+    : keyType_(keyType)
+    , tokenSequence_(0)
+    , revoked_(false)
+    , keys_(generateKeyPair(keyType_, randomSeed()))
+    {
+    }
+
 
 ValidatorKeys::ValidatorKeys (
     KeyType const& keyType,
@@ -57,11 +57,10 @@ ValidatorKeys::ValidatorKeys (
     std::uint32_t tokenSequence,
     bool revoked)
     : keyType_ (keyType)
-    , secretKey_ (secretKey)
     , tokenSequence_ (tokenSequence)
     , revoked_ (revoked)
+    , keys_ ({derivePublicKey(keyType_, secretKey), secretKey})
 {
-    publicKey_ = derivePublicKey(keyType_, secretKey_);
 }
 
 ValidatorKeys
@@ -187,8 +186,8 @@ ValidatorKeys::writeToFile (
 
     Json::Value jv;
     jv["key_type"] = to_string(keyType_);
-    jv["public_key"] = toBase58(TokenType::NodePublic, publicKey_);
-    jv["secret_key"] = toBase58(TokenType::NodePrivate, secretKey_);
+    jv["public_key"] = toBase58(TokenType::NodePublic, keys_.publicKey);
+    jv["secret_key"] = toBase58(TokenType::NodePrivate, keys_.secretKey);
     jv["token_sequence"] = Json::UInt (tokenSequence_);
     jv["revoked"] = revoked_;
     if (!domain_.empty())
@@ -230,14 +229,15 @@ ValidatorKeys::createValidatorToken (
 
     STObject st(sfGeneric);
     st[sfSequence] = tokenSequence_;
-    st[sfPublicKey] = publicKey_;
+    st[sfPublicKey] = keys_.publicKey;
     st[sfSigningPubKey] = tokenPublic;
 
     if (!domain_.empty())
         st[sfDomain] = makeSlice(domain_);
 
     ripple::sign(st, HashPrefix::manifest, keyType, tokenSecret);
-    ripple::sign(st, HashPrefix::manifest, keyType_, secretKey_, sfMasterSignature);
+    ripple::sign(st, HashPrefix::manifest, keyType_, keys_.secretKey,
+                 sfMasterSignature);
 
     Serializer s;
     st.add(s);
@@ -257,9 +257,10 @@ ValidatorKeys::revoke ()
 
     STObject st(sfGeneric);
     st[sfSequence] = std::numeric_limits<std::uint32_t>::max ();
-    st[sfPublicKey] = publicKey_;
+    st[sfPublicKey] = keys_.publicKey;
 
-    ripple::sign(st, HashPrefix::manifest, keyType_, secretKey_, sfMasterSignature);
+    ripple::sign(st, HashPrefix::manifest, keyType_, keys_.secretKey,
+                 sfMasterSignature);
 
     Serializer s;
     st.add(s);
@@ -274,7 +275,7 @@ ValidatorKeys::revoke ()
 std::string
 ValidatorKeys::sign (std::string const& data) const
 {
-    return strHex(ripple::sign (publicKey_, secretKey_, makeSlice (data)));
+    return strHex(ripple::sign(keys_.publicKey, keys_.secretKey, makeSlice(data)));
 }
 
 void
