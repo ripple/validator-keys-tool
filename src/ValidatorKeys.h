@@ -56,7 +56,7 @@ private:
 
       Keys() = delete;
       Keys(std::pair<PublicKey, SecretKey> p)
-          : publicKey(p.first), secretKey(p.second)
+          : publicKey(p.first), secretKey(p.second) {}
     };
 
     Keys keys_;

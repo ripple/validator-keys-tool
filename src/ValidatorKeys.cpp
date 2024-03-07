@@ -42,13 +42,9 @@ ValidatorToken::toString () const
     return ripple::base64_encode(to_string(jv));
 }
 
-ValidatorKeys::ValidatorKeys (KeyType const& keyType)
-    : keyType_ (keyType)
-    , tokenSequence_ (0)
-    , revoked_ (false)
-    , keys_ (generateKeyPair(keyType_, randomSeed())
-{
-}
+ValidatorKeys::ValidatorKeys(KeyType const &keyType)
+    : keyType_(keyType), tokenSequence_(0), revoked_(false),
+      keys_(generateKeyPair(keyType_, randomSeed())) {}
 
 ValidatorKeys::ValidatorKeys (
     KeyType const& keyType,
