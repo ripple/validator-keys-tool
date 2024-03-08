@@ -59,11 +59,11 @@ private:
           : publicKey(p.first), secretKey(p.second) {}
     };
 
-    Keys keys_;
     std::vector<std::uint8_t> manifest_;
     std::uint32_t tokenSequence_;
     bool revoked_;
     std::string domain_;
+    Keys keys_;
 
 public:
     explicit
