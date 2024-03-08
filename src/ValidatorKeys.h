@@ -25,13 +25,11 @@
 #include <string>
 #include <vector>
 
-namespace boost
-{
-namespace filesystem
-{
+namespace boost {
+namespace filesystem {
 class path;
 }
-}
+}  // namespace boost
 
 namespace ripple {
 
@@ -41,7 +39,8 @@ struct ValidatorToken
     SecretKey const secretKey;
 
     /// Returns base64-encoded JSON object
-    std::string toString () const;
+    std::string
+    toString() const;
 };
 
 class ValidatorKeys
@@ -50,13 +49,16 @@ private:
     KeyType keyType_;
 
     // struct used to contain both public and secret keys
-    struct Keys {
+    struct Keys
+    {
         PublicKey publicKey;
         SecretKey secretKey;
 
         Keys() = delete;
         Keys(std::pair<PublicKey, SecretKey> p)
-          : publicKey(p.first), secretKey(p.second) {}
+            : publicKey(p.first), secretKey(p.second)
+        {
+        }
     };
 
     std::vector<std::uint8_t> manifest_;
@@ -66,11 +68,9 @@ private:
     Keys keys_;
 
 public:
-    explicit
-    ValidatorKeys (
-        KeyType const& keyType);
+    explicit ValidatorKeys(KeyType const& keyType);
 
-    ValidatorKeys (
+    ValidatorKeys(
         KeyType const& keyType,
         SecretKey const& secretKey,
         std::uint32_t sequence,
@@ -82,18 +82,21 @@ public:
 
         @throws std::runtime_error if file content is invalid
     */
-    static ValidatorKeys make_ValidatorKeys(
-        boost::filesystem::path const& keyFile);
+    static ValidatorKeys
+    make_ValidatorKeys(boost::filesystem::path const& keyFile);
 
-    ~ValidatorKeys () = default;
+    ~ValidatorKeys() = default;
     ValidatorKeys(ValidatorKeys const&) = default;
-    ValidatorKeys& operator=(ValidatorKeys const&) = default;
+    ValidatorKeys&
+    operator=(ValidatorKeys const&) = default;
 
-    inline bool operator==(ValidatorKeys const &rhs) const {
+    inline bool
+    operator==(ValidatorKeys const& rhs) const
+    {
         return revoked_ == rhs.revoked_ && keyType_ == rhs.keyType_ &&
-             tokenSequence_ == rhs.tokenSequence_ &&
-             keys_.publicKey == rhs.keys_.publicKey &&
-             keys_.secretKey == rhs.keys_.secretKey;
+            tokenSequence_ == rhs.tokenSequence_ &&
+            keys_.publicKey == rhs.keys_.publicKey &&
+            keys_.secretKey == rhs.keys_.secretKey;
     }
 
     /** Write keys to JSON file
@@ -105,21 +108,21 @@ public:
         @throws std::runtime_error if unable to create parent directory
     */
     void
-    writeToFile (boost::filesystem::path const& keyFile) const;
+    writeToFile(boost::filesystem::path const& keyFile) const;
 
     /** Returns validator token for current sequence
 
         @param keyType Key type for the token keys
     */
     boost::optional<ValidatorToken>
-    createValidatorToken (KeyType const& keyType = KeyType::secp256k1);
+    createValidatorToken(KeyType const& keyType = KeyType::secp256k1);
 
     /** Revokes validator keys
 
         @return base64-encoded key revocation
     */
     std::string
-    revoke ();
+    revoke();
 
     /** Signs string with validator key
 
@@ -128,17 +131,18 @@ public:
     @return hex-encoded signature
     */
     std::string
-    sign (std::string const& data) const;
+    sign(std::string const& data) const;
 
     /** Returns the public key. */
-    PublicKey const& publicKey() const
+    PublicKey const&
+    publicKey() const
     {
         return keys_.publicKey;
     }
 
     /** Returns true if keys are revoked. */
     bool
-    revoked () const
+    revoked() const
     {
         return revoked_;
     }
@@ -151,19 +155,22 @@ public:
     }
 
     /** Sets the domain associated with this key */
-    void domain(std::string d);
+    void
+    domain(std::string d);
 
     /** Returns the last manifest we generated for this domain, if available. */
-    std::vector<std::uint8_t> manifest() const
+    std::vector<std::uint8_t>
+    manifest() const
     {
         return manifest_;
     }
 
     /** Returns the sequence number of the last manifest generated. */
-    std::uint32_t sequence() const
+    std::uint32_t
+    sequence() const
     {
         return tokenSequence_;
     }
 };
 
-} // ripple
+}  // namespace ripple

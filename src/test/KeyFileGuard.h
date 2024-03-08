@@ -33,45 +33,44 @@ private:
     path subDir_;
     beast::unit_test::suite& test_;
 
-    auto rmDir (path const& toRm)
+    auto
+    rmDir(path const& toRm)
     {
-        if (is_directory (toRm))
-            remove_all (toRm);
+        if (is_directory(toRm))
+            remove_all(toRm);
         else
-            test_.log << "Expected " << toRm.string ()
+            test_.log << "Expected " << toRm.string()
                       << " to be an existing directory." << std::endl;
     };
 
 public:
-    KeyFileGuard (beast::unit_test::suite& test,
-        std::string const& subDir)
-        : subDir_ (subDir)
-        , test_ (test)
+    KeyFileGuard(beast::unit_test::suite& test, std::string const& subDir)
+        : subDir_(subDir), test_(test)
     {
         using namespace boost::filesystem;
 
-        if (!exists (subDir_))
-            create_directory (subDir_);
+        if (!exists(subDir_))
+            create_directory(subDir_);
         else
             // Cannot run the test. Someone created a file or directory
             // where we want to put our directory
-            throw std::runtime_error (
-                "Cannot create directory: " + subDir_.string ());
+            throw std::runtime_error(
+                "Cannot create directory: " + subDir_.string());
     }
-    ~KeyFileGuard ()
+    ~KeyFileGuard()
     {
         try
         {
             using namespace boost::filesystem;
 
-            rmDir (subDir_);
+            rmDir(subDir_);
         }
         catch (std::exception& e)
         {
             // if we throw here, just let it die.
-            test_.log << "Error in ~KeyFileGuard: " << e.what () << std::endl;
+            test_.log << "Error in ~KeyFileGuard: " << e.what() << std::endl;
         };
     }
 };
 
-}  // ripple
+}  // namespace ripple

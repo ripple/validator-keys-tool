@@ -19,16 +19,17 @@
 //==============================================================================
 
 #include <ValidatorKeysTool.h>
+
 #include <ValidatorKeys.h>
 
-#include <ripple/basics/base64.h>
 #include <ripple/basics/StringUtilities.h>
+#include <ripple/basics/base64.h>
 #include <ripple/beast/core/SemanticVersion.h>
 #include <ripple/beast/unit_test.h>
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
-#include <boost/program_options.hpp>
 #include <boost/preprocessor/stringize.hpp>
+#include <boost/program_options.hpp>
 
 #ifdef BOOST_MSVC
 #include <Windows.h>
@@ -38,7 +39,8 @@
 //  The build version number. You must edit this for each release
 //  and follow the format described at http://semver.org/
 //--------------------------------------------------------------------------
-char const* const versionString = "0.3.2"
+char const* const versionString =
+    "0.3.2"
 
 #if defined(DEBUG) || defined(SANITIZER)
     "+"
@@ -57,56 +59,57 @@ char const* const versionString = "0.3.2"
     //--------------------------------------------------------------------------
     ;
 
-static int runUnitTests ()
+static int
+runUnitTests()
 {
     using namespace beast::unit_test;
     reporter r;
     bool const anyFailed = r.run_each(global_suites());
-    if(anyFailed)
-        return EXIT_FAILURE;    //LCOV_EXCL_LINE
+    if (anyFailed)
+        return EXIT_FAILURE;  // LCOV_EXCL_LINE
     return EXIT_SUCCESS;
 }
 
-void createKeyFile (boost::filesystem::path const& keyFile)
+void
+createKeyFile(boost::filesystem::path const& keyFile)
 {
     using namespace ripple;
 
-    if (exists (keyFile))
-        throw std::runtime_error (
-            "Refusing to overwrite existing key file: " +
-                keyFile.string ());
+    if (exists(keyFile))
+        throw std::runtime_error(
+            "Refusing to overwrite existing key file: " + keyFile.string());
 
-    ValidatorKeys const keys (KeyType::ed25519);
-    keys.writeToFile (keyFile);
+    ValidatorKeys const keys(KeyType::ed25519);
+    keys.writeToFile(keyFile);
 
-    std::cout << "Validator keys stored in " <<
-        keyFile.string() <<
-        "\n\nThis file should be stored securely and not shared.\n\n";
+    std::cout << "Validator keys stored in " << keyFile.string()
+              << "\n\nThis file should be stored securely and not shared.\n\n";
 }
 
-void createToken (boost::filesystem::path const& keyFile)
+void
+createToken(boost::filesystem::path const& keyFile)
 {
     using namespace ripple;
 
-    auto keys = ValidatorKeys::make_ValidatorKeys (keyFile);
+    auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
 
-    if (keys.revoked ())
-        throw std::runtime_error (
-            "Validator keys have been revoked.");
+    if (keys.revoked())
+        throw std::runtime_error("Validator keys have been revoked.");
 
-    auto const token = keys.createValidatorToken ();
+    auto const token = keys.createValidatorToken();
 
-    if (! token)
-        throw std::runtime_error (
+    if (!token)
+        throw std::runtime_error(
             "Maximum number of tokens have already been generated.\n"
             "Revoke validator keys if previous token has been compromised.");
 
     // Update key file with new token sequence
-    keys.writeToFile (keyFile);
+    keys.writeToFile(keyFile);
 
-    std::cout << "Update rippled.cfg file with these values and restart rippled:\n\n";
-    std::cout << "# validator public key: " <<
-              toBase58 (TokenType::NodePublic, keys.publicKey()) << "\n\n";
+    std::cout
+        << "Update rippled.cfg file with these values and restart rippled:\n\n";
+    std::cout << "# validator public key: "
+              << toBase58(TokenType::NodePublic, keys.publicKey()) << "\n\n";
     std::cout << "[validator_token]\n";
 
     auto const tokenStr = token->toString();
@@ -117,25 +120,27 @@ void createToken (boost::filesystem::path const& keyFile)
     std::cout << std::endl;
 }
 
-void createRevocation (boost::filesystem::path const& keyFile)
+void
+createRevocation(boost::filesystem::path const& keyFile)
 {
     using namespace ripple;
 
-    auto keys = ValidatorKeys::make_ValidatorKeys (keyFile);
+    auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
 
     if (keys.revoked())
         std::cout << "WARNING: Validator keys have already been revoked!\n\n";
     else
         std::cout << "WARNING: This will revoke your validator keys!\n\n";
 
-    auto const revocation = keys.revoke ();
+    auto const revocation = keys.revoke();
 
     // Update key file with new token sequence
-    keys.writeToFile (keyFile);
+    keys.writeToFile(keyFile);
 
-    std::cout << "Update rippled.cfg file with these values and restart rippled:\n\n";
-    std::cout << "# validator public key: " <<
-        toBase58 (TokenType::NodePublic, keys.publicKey()) << "\n\n";
+    std::cout
+        << "Update rippled.cfg file with these values and restart rippled:\n\n";
+    std::cout << "# validator public key: "
+              << toBase58(TokenType::NodePublic, keys.publicKey()) << "\n\n";
     std::cout << "[validator_key_revocation]\n";
 
     auto const len = 72;
@@ -145,7 +150,8 @@ void createRevocation (boost::filesystem::path const& keyFile)
     std::cout << std::endl;
 }
 
-void attestDomain(ripple::ValidatorKeys const& keys)
+void
+attestDomain(ripple::ValidatorKeys const& keys)
 {
     using namespace ripple;
 
@@ -158,43 +164,47 @@ void attestDomain(ripple::ValidatorKeys const& keys)
     }
 
     std::cout << "The domain attestation for validator "
-        << toBase58 (TokenType::NodePublic, keys.publicKey()) << " is:\n\n";
+              << toBase58(TokenType::NodePublic, keys.publicKey())
+              << " is:\n\n";
 
-    std::cout << "attestation=\"" << keys.sign (
-        "[domain-attestation-blob:" + keys.domain() + ":" +
-        toBase58(TokenType::NodePublic, keys.publicKey()) + "]") << "\"\n\n";
+    std::cout << "attestation=\""
+              << keys.sign(
+                     "[domain-attestation-blob:" + keys.domain() + ":" +
+                     toBase58(TokenType::NodePublic, keys.publicKey()) + "]")
+              << "\"\n\n";
 
     std::cout << "You should include it in your xrp-ledger.toml file in the\n";
     std::cout << "section for this validator.\n";
 }
 
-void attestDomain(boost::filesystem::path const& keyFile)
+void
+attestDomain(boost::filesystem::path const& keyFile)
 {
     using namespace ripple;
 
-    auto keys = ValidatorKeys::make_ValidatorKeys (keyFile);
+    auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
 
     if (keys.revoked())
-        throw std::runtime_error (
+        throw std::runtime_error(
             "Operation error: The specified master key has been revoked!");
 
     attestDomain(keys);
 }
 
-void setDomain (std::string const& domain,
-    boost::filesystem::path const& keyFile)
+void
+setDomain(std::string const& domain, boost::filesystem::path const& keyFile)
 {
     using namespace ripple;
 
-    auto keys = ValidatorKeys::make_ValidatorKeys (keyFile);
+    auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
 
     if (keys.revoked())
-        throw std::runtime_error (
+        throw std::runtime_error(
             "Operation error: The specified master key has been revoked!");
 
     if (domain == keys.domain())
     {
-        if(domain.empty())
+        if (domain.empty())
             std::cout << "The domain name was already cleared!\n";
         else
             std::cout << "The domain name was already set.\n";
@@ -203,14 +213,14 @@ void setDomain (std::string const& domain,
 
     // Set the domain and generate a new token
     keys.domain(domain);
-    auto const token = keys.createValidatorToken ();
-    if (! token)
-        throw std::runtime_error (
+    auto const token = keys.createValidatorToken();
+    if (!token)
+        throw std::runtime_error(
             "Maximum number of tokens have already been generated.\n"
             "Revoke validator keys if previous token has been compromised.");
 
     // Flush to disk
-    keys.writeToFile (keyFile);
+    keys.writeToFile(keyFile);
 
     if (domain.empty())
         std::cout << "The domain name has been cleared.\n";
@@ -221,8 +231,8 @@ void setDomain (std::string const& domain,
     std::cout << "\n";
     std::cout << "You also need to update the rippled.cfg file to add a new\n";
     std::cout << "validator token and restart rippled:\n\n";
-    std::cout << "# validator public key: " <<
-              toBase58 (TokenType::NodePublic, keys.publicKey()) << "\n\n";
+    std::cout << "# validator public key: "
+              << toBase58(TokenType::NodePublic, keys.publicKey()) << "\n\n";
     std::cout << "[validator_token]\n";
 
     auto const tokenStr = token->toString();
@@ -233,31 +243,32 @@ void setDomain (std::string const& domain,
     std::cout << "\n";
 }
 
-void signData (std::string const& data,
-    boost::filesystem::path const& keyFile)
+void
+signData(std::string const& data, boost::filesystem::path const& keyFile)
 {
     using namespace ripple;
 
     if (data.empty())
-        throw std::runtime_error (
+        throw std::runtime_error(
             "Syntax error: Must specify data string to sign");
 
-    auto keys = ValidatorKeys::make_ValidatorKeys (keyFile);
+    auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
 
     if (keys.revoked())
         std::cout << "WARNING: Validator keys have been revoked!\n\n";
 
-    std::cout << keys.sign (data) << std::endl;
+    std::cout << keys.sign(data) << std::endl;
     std::cout << std::endl;
 }
 
-void generateManifest (
+void
+generateManifest(
     std::string const& type,
     boost::filesystem::path const& keyFile)
 {
     using namespace ripple;
 
-    auto keys = ValidatorKeys::make_ValidatorKeys (keyFile);
+    auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
 
     auto const m = keys.manifest();
 
@@ -285,59 +296,60 @@ void generateManifest (
     std::cout << "Unknown encoding '" << type << "'\n";
 }
 
-int runCommand (std::string const& command,
-    std::vector <std::string> const& args,
+int
+runCommand(
+    std::string const& command,
+    std::vector<std::string> const& args,
     boost::filesystem::path const& keyFile)
 {
     using namespace std;
 
     static map<string, vector<string>::size_type> const commandArgs = {
-        { "create_keys", 0 },
-        { "create_token", 0 },
-        { "revoke_keys", 0 },
-        { "set_domain", 1 },
-        { "clear_domain", 0 },
-        { "attest_domain", 0 },
-        { "show_manifest", 1 },
-        { "sign", 1 },
+        {"create_keys", 0},
+        {"create_token", 0},
+        {"revoke_keys", 0},
+        {"set_domain", 1},
+        {"clear_domain", 0},
+        {"attest_domain", 0},
+        {"show_manifest", 1},
+        {"sign", 1},
     };
 
-    auto const iArgs = commandArgs.find (command);
+    auto const iArgs = commandArgs.find(command);
 
-    if (iArgs == commandArgs.end ())
-        throw std::runtime_error ("Unknown command: " + command);
+    if (iArgs == commandArgs.end())
+        throw std::runtime_error("Unknown command: " + command);
 
     if (args.size() != iArgs->second)
-        throw std::runtime_error ("Syntax error: Wrong number of arguments");
+        throw std::runtime_error("Syntax error: Wrong number of arguments");
 
     if (command == "create_keys")
-        createKeyFile (keyFile);
+        createKeyFile(keyFile);
     else if (command == "create_token")
-        createToken (keyFile);
+        createToken(keyFile);
     else if (command == "revoke_keys")
-        createRevocation (keyFile);
+        createRevocation(keyFile);
     else if (command == "set_domain")
-        setDomain (args[0], keyFile);
+        setDomain(args[0], keyFile);
     else if (command == "clear_domain")
-        setDomain ("", keyFile);
+        setDomain("", keyFile);
     else if (command == "attest_domain")
-        attestDomain (keyFile);
+        attestDomain(keyFile);
     else if (command == "sign")
-        signData (args[0], keyFile);
+        signData(args[0], keyFile);
     else if (command == "show_manifest")
-        generateManifest (args[0], keyFile);
+        generateManifest(args[0], keyFile);
 
     return 0;
 }
 
-//LCOV_EXCL_START
-static
-std::string
-getEnvVar (char const* name)
+// LCOV_EXCL_START
+static std::string
+getEnvVar(char const* name)
 {
     std::string value;
 
-    auto const v = getenv (name);
+    auto const v = getenv(name);
 
     if (v != nullptr)
         value = v;
@@ -345,7 +357,8 @@ getEnvVar (char const* name)
     return value;
 }
 
-void printHelp (const boost::program_options::options_description& desc)
+void
+printHelp(const boost::program_options::options_description& desc)
 {
     std::cerr
         << "validator-keys [options] <command> [<argument> ...]\n"
@@ -354,28 +367,35 @@ void printHelp (const boost::program_options::options_description& desc)
            "     create_keys                   Generate validator keys.\n"
            "     create_token                  Generate validator token.\n"
            "     revoke_keys                   Revoke validator keys.\n"
-           "     sign <data>                   Sign string with validator key.\n"
-           "     show_manifest [hex|base64]    Displays the last generated manifest\n"
-           "     set_domain <domain>           Associate a domain with the validator key.\n"
-           "     clear_domain                  Disassociate a domain from a validator key.\n"
-           "     attest_domain                 Produce the attestation string for a domain.\n";
+           "     sign <data>                   Sign string with validator "
+           "key.\n"
+           "     show_manifest [hex|base64]    Displays the last generated "
+           "manifest\n"
+           "     set_domain <domain>           Associate a domain with the "
+           "validator key.\n"
+           "     clear_domain                  Disassociate a domain from a "
+           "validator key.\n"
+           "     attest_domain                 Produce the attestation string "
+           "for a domain.\n";
 }
-//LCOV_EXCL_STOP
+// LCOV_EXCL_STOP
 
 std::string const&
-getVersionString ()
+getVersionString()
 {
     static std::string const value = [] {
         std::string const s = versionString;
         beast::SemanticVersion v;
-        if (!v.parse (s) || v.print () != s)
-            throw std::logic_error (s + ": Bad version string"); //LCOV_EXCL_LINE
+        if (!v.parse(s) || v.print() != s)
+            throw std::logic_error(
+                s + ": Bad version string");  // LCOV_EXCL_LINE
         return s;
     }();
     return value;
 }
 
-int main (int argc, char** argv)
+int
+main(int argc, char** argv)
 {
     namespace po = boost::program_options;
 
@@ -383,22 +403,20 @@ int main (int argc, char** argv)
 
     // Set up option parsing.
     //
-    po::options_description general ("General Options");
-    general.add_options ()
-    ("help,h", "Display this message.")
-    ("keyfile", po::value<std::string> (), "Specify the key file.")
-    ("unittest,u", "Perform unit tests.")
-    ("version", "Display the build version.")
-    ;
+    po::options_description general("General Options");
+    general.add_options()("help,h", "Display this message.")(
+        "keyfile", po::value<std::string>(), "Specify the key file.")(
+        "unittest,u", "Perform unit tests.")(
+        "version", "Display the build version.");
 
     po::options_description hidden("Hidden options");
-    hidden.add_options()
-    ("command", po::value< std::string > (), "Command.")
-    ("arguments",po::value< std::vector<std::string> > ()->default_value(
-        std::vector <std::string> (), "empty"), "Arguments.")
-    ;
+    hidden.add_options()("command", po::value<std::string>(), "Command.")(
+        "arguments",
+        po::value<std::vector<std::string>>()->default_value(
+            std::vector<std::string>(), "empty"),
+        "Arguments.");
     po::positional_options_description p;
-    p.add ("command", 1).add ("arguments", -1);
+    p.add("command", 1).add("arguments", -1);
 
     po::options_description cmdline_options;
     cmdline_options.add(general).add(hidden);
@@ -406,65 +424,66 @@ int main (int argc, char** argv)
     // Parse options, if no error.
     try
     {
-        po::store (po::command_line_parser (argc, argv)
-            .options (cmdline_options)    // Parse options.
-            .positional (p)
-            .run (),
+        po::store(
+            po::command_line_parser(argc, argv)
+                .options(cmdline_options)  // Parse options.
+                .positional(p)
+                .run(),
             vm);
-        po::notify (vm);                  // Invoke option notify functions.
+        po::notify(vm);  // Invoke option notify functions.
     }
-    //LCOV_EXCL_START
+    // LCOV_EXCL_START
     catch (std::exception const&)
     {
-        std::cerr << "validator-keys: Incorrect command line syntax." << std::endl;
+        std::cerr << "validator-keys: Incorrect command line syntax."
+                  << std::endl;
         std::cerr << "Use '--help' for a list of options." << std::endl;
         return EXIT_FAILURE;
     }
-    //LCOV_EXCL_STOP
+    // LCOV_EXCL_STOP
 
     // Run the unit tests if requested.
     // The unit tests will exit the application with an appropriate return code.
-    if (vm.count ("unittest"))
+    if (vm.count("unittest"))
         return runUnitTests();
 
-    //LCOV_EXCL_START
-    if (vm.count ("version"))
+    // LCOV_EXCL_START
+    if (vm.count("version"))
     {
-        std::cout << "validator-keys version " <<
-            getVersionString () << std::endl;
+        std::cout << "validator-keys version " << getVersionString()
+                  << std::endl;
         return 0;
     }
 
-    if (vm.count ("help") || ! vm.count ("command"))
+    if (vm.count("help") || !vm.count("command"))
     {
-        printHelp (general);
+        printHelp(general);
         return EXIT_SUCCESS;
     }
 
-    std::string const homeDir = getEnvVar ("HOME");
+    std::string const homeDir = getEnvVar("HOME");
     std::string const defaultKeyFile =
-        (homeDir.empty () ?
-            boost::filesystem::current_path ().string () : homeDir) +
+        (homeDir.empty() ? boost::filesystem::current_path().string()
+                         : homeDir) +
         "/.ripple/validator-keys.json";
 
     try
     {
         using namespace boost::filesystem;
-        path keyFile = vm.count ("keyfile") ?
-            vm["keyfile"].as<std::string> () :
-            defaultKeyFile;
+        path keyFile = vm.count("keyfile") ? vm["keyfile"].as<std::string>()
+                                           : defaultKeyFile;
 
-        return runCommand (
+        return runCommand(
             vm["command"].as<std::string>(),
             vm["arguments"].as<std::vector<std::string>>(),
             keyFile);
     }
-    catch(std::exception const& e)
+    catch (std::exception const& e)
     {
         std::cerr << e.what() << "\n";
         return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;
-    //LCOV_EXCL_STOP
+    // LCOV_EXCL_STOP
 }
