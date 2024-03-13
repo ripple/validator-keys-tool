@@ -40,8 +40,32 @@ createToken(boost::filesystem::path const& keyFile);
 void
 createRevocation(boost::filesystem::path const& keyFile);
 
+/*****************************************/
+/* External signing support              */
+void
+createExternal(std::string const& data, boost::filesystem::path const& keyFile);
+
+void
+startToken(boost::filesystem::path const& keyFile);
+
+void
+finishToken(std::string const& data, boost::filesystem::path const& keyFile);
+
+void
+startRevocation(boost::filesystem::path const& keyFile);
+
+void
+finishRevocation(
+    std::string const& data,
+    boost::filesystem::path const& keyFile);
+
+/*****************************************/
+
 void
 signData(std::string const& data, boost::filesystem::path const& keyFile);
+
+void
+signHexData(std::string const& data, boost::filesystem::path const& keyFile);
 
 int
 runCommand(
