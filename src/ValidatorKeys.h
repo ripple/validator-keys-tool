@@ -18,8 +18,8 @@
 */
 //==============================================================================
 
-#include <ripple/protocol/KeyType.h>
-#include <ripple/protocol/SecretKey.h>
+#include <xrpl/protocol/KeyType.h>
+#include <xrpl/protocol/SecretKey.h>
 #include <boost/optional.hpp>
 #include <cstdint>
 #include <string>
