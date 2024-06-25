@@ -17,8 +17,8 @@
 */
 //==============================================================================
 
-#include <ValidatorKeysTool.h>
 #include <ValidatorKeys.h>
+#include <ValidatorKeysTool.h>
 #include <test/KeyFileGuard.h>
 #include <xrpl/protocol/SecretKey.h>
 
