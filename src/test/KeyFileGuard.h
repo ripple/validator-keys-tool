@@ -17,9 +17,11 @@
 */
 //==============================================================================
 
-#include <boost/filesystem.hpp>
-#include <fstream>
 #include <xrpl/beast/unit_test.h>
+
+#include <boost/filesystem.hpp>
+
+#include <fstream>
 
 namespace ripple {
 

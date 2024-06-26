@@ -19,6 +19,7 @@
 //==============================================================================
 
 #include <boost/optional.hpp>
+
 #include <vector>
 
 namespace boost {

@@ -18,7 +18,9 @@
 //==============================================================================
 
 #include <ValidatorKeys.h>
+
 #include <test/KeyFileGuard.h>
+
 #include <xrpl/basics/StringUtilities.h>
 #include <xrpl/basics/base64.h>
 #include <xrpl/protocol/HashPrefix.h>
