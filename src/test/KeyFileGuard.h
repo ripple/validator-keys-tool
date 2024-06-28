@@ -17,8 +17,10 @@
 */
 //==============================================================================
 
-#include <ripple/beast/unit_test.h>
+#include <xrpl/beast/unit_test.h>
+
 #include <boost/filesystem.hpp>
+
 #include <fstream>
 
 namespace ripple {

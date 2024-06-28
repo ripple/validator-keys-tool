@@ -18,14 +18,14 @@
 */
 //==============================================================================
 
+#include <ValidatorKeys.h>
 #include <ValidatorKeysTool.h>
 
-#include <ValidatorKeys.h>
+#include <xrpl/basics/StringUtilities.h>
+#include <xrpl/basics/base64.h>
+#include <xrpl/beast/core/SemanticVersion.h>
+#include <xrpl/beast/unit_test.h>
 
-#include <ripple/basics/StringUtilities.h>
-#include <ripple/basics/base64.h>
-#include <ripple/beast/core/SemanticVersion.h>
-#include <ripple/beast/unit_test.h>
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <boost/preprocessor/stringize.hpp>

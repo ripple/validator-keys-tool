@@ -44,11 +44,15 @@ DerivePointerAlignment: false
 DisableFormat:   false
 ExperimentalAutoDetectBinPacking: false
 ForEachMacros:   [ Q_FOREACH,  BOOST_FOREACH ]
+IncludeBlocks: Regroup
+
 IncludeCategories:
-  - Regex:           '^<(BeastConfig)'
-    Priority:        0
-  - Regex:           '^<(ripple)/'
+  - Regex:           '^<xrpl/.*>'
     Priority:        2
+  - Regex:           '^<(test)/'
+    Priority:        1
+  - Regex:           '^<.*\.h>'
+    Priority:        0
   - Regex:           '^<(boost)/'
     Priority:        3
   - Regex:           '.*'
