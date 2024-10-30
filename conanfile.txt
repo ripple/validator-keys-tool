@@ -1,5 +1,5 @@
 [requires]
-xrpl/2.1.0
+xrpl/2.3.0-b4
 
 [generators]
 CMakeDeps
