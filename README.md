@@ -5,12 +5,7 @@ Rippled validator key generation tool
 
 ## Build
 
-If you do not have package `xrpl` in your local Conan cache,
-you can add the Ripple remote to download it:
-
-```
-conan remote add ripple http://18.143.149.228:8081/artifactory/api/conan/conan-non-prod
-```
+If you do not have package `xrpl` in your local Conan cache, it can be added by following the instructions in the [BUILD.md](https://github.com/XRPLF/rippled/blob/master/BUILD.md#patched-recipes) file in the rippled GitHub repository.
 
 The build requirements and commands are the exact same as
 [those](https://github.com/XRPLF/rippled/blob/develop/BUILD.md) for rippled.
