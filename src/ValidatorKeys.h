@@ -48,26 +48,35 @@ struct ValidatorToken
 class ValidatorKeys
 {
 private:
-    KeyType keyType_;
-
     // struct used to contain both public and secret keys
     struct Keys
     {
         PublicKey publicKey;
-        SecretKey secretKey;
+        // An unseated secretKey indicates that this object requires external
+        // signing
+        std::optional<SecretKey> secretKey;
 
         Keys() = delete;
-        Keys(std::pair<PublicKey, SecretKey> p)
+        Keys(std::pair<PublicKey, SecretKey> const& p)
             : publicKey(p.first), secretKey(p.second)
+        {
+        }
+        Keys(PublicKey const& pub) : publicKey(pub), secretKey(std::nullopt)
         {
         }
     };
 
+    KeyType const keyType_;
+    Keys const keys_;
     std::vector<std::uint8_t> manifest_;
     std::uint32_t tokenSequence_;
     bool revoked_;
     std::string domain_;
-    Keys keys_;
+    // The pending fields are mutable so they can be updated
+    // in const functions without risking updating anything else.
+    // This may not be the best way to do this.
+    mutable std::optional<SecretKey> pendingTokenSecret_;
+    mutable std::optional<KeyType> pendingKeyType_;
 
 public:
     explicit ValidatorKeys(KeyType const& keyType);
@@ -75,7 +84,17 @@ public:
     ValidatorKeys(
         KeyType const& keyType,
         SecretKey const& secretKey,
-        std::uint32_t sequence,
+        std::uint32_t tokenSequence,
+        bool revoked = false);
+
+    /** Special case: Create only with a PublicKey, which implies
+        that the SecretKey is stored and used externally. The file
+        will be written with "secret_key: external"
+    */
+    ValidatorKeys(
+        KeyType const& keyType,
+        PublicKey const& publicKey,
+        std::uint32_t tokenSequence = 0,
         bool revoked = false);
 
     /** Returns ValidatorKeys constructed from JSON file
@@ -90,7 +109,7 @@ public:
     ~ValidatorKeys() = default;
     ValidatorKeys(ValidatorKeys const&) = default;
     ValidatorKeys&
-    operator=(ValidatorKeys const&) = default;
+    operator=(ValidatorKeys const&) = delete;
 
     inline bool
     operator==(ValidatorKeys const& rhs) const
@@ -119,12 +138,40 @@ public:
     boost::optional<ValidatorToken>
     createValidatorToken(KeyType const& keyType = KeyType::secp256k1);
 
+    /** Returns partial validator token for current sequence
+
+        @param keyType Key type for the token keys
+    */
+    boost::optional<std::string>
+    startValidatorToken(KeyType const& keyType = KeyType::secp256k1) const;
+
+    /** Returns validator token for current sequence
+
+        @param masterSig Master signature
+    */
+    boost::optional<ValidatorToken>
+    finishToken(Blob const& masterSig);
+
     /** Revokes validator keys
 
         @return base64-encoded key revocation
     */
     std::string
     revoke();
+
+    /** Returns partial revocation token
+
+        @param keyType Key type for the token keys
+    */
+    std::string
+    startRevoke() const;
+
+    /** Returns full revocation token
+
+        @param masterSig Master signature
+    */
+    std::string
+    finishRevoke(Blob const& masterSig);
 
     /** Signs string with validator key
 
@@ -134,6 +181,15 @@ public:
     */
     std::string
     sign(std::string const& data) const;
+
+    /** Signs hex-encoded string with validator key
+
+    @papam data Hex string to sign. Will be decoded to raw bytes for signing.
+
+    @return hex-encoded signature
+    */
+    std::string
+    signHex(std::string data) const;
 
     /** Returns the public key. */
     PublicKey const&
@@ -150,7 +206,7 @@ public:
     }
 
     /** Returns the domain associated with this key, if any */
-    std::string
+    std::string const&
     domain() const
     {
         return domain_;
@@ -160,10 +216,17 @@ public:
     void
     domain(std::string d);
 
+    // Throws if the manifest is malformed or not signed correctly.
+    void
+    verifyManifest() const;
+
     /** Returns the last manifest we generated for this domain, if available. */
     std::vector<std::uint8_t>
     manifest() const
     {
+        if (!manifest_.empty())
+            verifyManifest();
+
         return manifest_;
     }
 
@@ -173,6 +236,10 @@ public:
     {
         return tokenSequence_;
     }
+
+private:
+    void
+    setManifest(STObject const& st);
 };
 
 }  // namespace ripple

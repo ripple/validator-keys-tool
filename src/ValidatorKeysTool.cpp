@@ -23,6 +23,7 @@
 
 #include <xrpl/basics/StringUtilities.h>
 #include <xrpl/basics/base64.h>
+#include <xrpl/basics/strHex.h>
 #include <xrpl/beast/core/SemanticVersion.h>
 #include <xrpl/beast/unit_test.h>
 
@@ -31,16 +32,12 @@
 #include <boost/preprocessor/stringize.hpp>
 #include <boost/program_options.hpp>
 
-#ifdef BOOST_MSVC
-#include <Windows.h>
-#endif
-
 //------------------------------------------------------------------------------
 //  The build version number. You must edit this for each release
 //  and follow the format described at http://semver.org/
 //--------------------------------------------------------------------------
 char const* const versionString =
-    "0.3.2"
+    "0.4.0"
 
 #if defined(DEBUG) || defined(SANITIZER)
     "+"
@@ -87,6 +84,46 @@ createKeyFile(boost::filesystem::path const& keyFile)
 }
 
 void
+createExternal(std::string const& data, boost::filesystem::path const& keyFile)
+{
+    using namespace ripple;
+
+    if (exists(keyFile))
+        throw std::runtime_error(
+            "Refusing to overwrite existing key file: " + keyFile.string());
+
+    auto const pkInfo = [&]() {
+        if (auto const unBase58 =
+                parseBase58<PublicKey>(TokenType::NodePublic, data))
+            // parseBase58 checks but does not return the key type, so it's safe
+            // to dereference the function result.
+            return std::make_pair(*publicKeyType(*unBase58), *unBase58);
+
+        if (auto const unHex = strUnHex(data))
+        {
+            auto const slice = makeSlice(*unHex);
+            if (auto const pkType = publicKeyType(slice))
+                return std::make_pair(*pkType, PublicKey(slice));
+        }
+
+        {
+            auto const unBase64 = base64_decode(data);
+            auto const slice = makeSlice(unBase64);
+            if (auto const pkType = publicKeyType(slice))
+                return std::make_pair(*pkType, PublicKey(slice));
+        }
+
+        throw std::runtime_error("Unable to parse public key: " + data);
+    }();
+
+    ValidatorKeys const keys(pkInfo.first, pkInfo.second);
+    keys.writeToFile(keyFile);
+
+    std::cout << "Validator keys stored in " << keyFile.string()
+              << "\n\nThis file should be stored securely and not shared.\n\n";
+}
+
+void
 createToken(boost::filesystem::path const& keyFile)
 {
     using namespace ripple;
@@ -97,6 +134,92 @@ createToken(boost::filesystem::path const& keyFile)
         throw std::runtime_error("Validator keys have been revoked.");
 
     auto const token = keys.createValidatorToken();
+
+    if (!token)
+        throw std::runtime_error(
+            "Maximum number of tokens have already been generated.\n"
+            "Revoke validator keys if previous token has been compromised.");
+
+    // Update key file with new token sequence
+    keys.writeToFile(keyFile);
+
+    std::cout
+        << "Update rippled.cfg file with these values and restart rippled:\n\n";
+    std::cout << "# validator public key: "
+              << toBase58(TokenType::NodePublic, keys.publicKey()) << "\n\n";
+    std::cout << "[validator_token]\n";
+
+    auto const tokenStr = token->toString();
+    auto const len = 72;
+    for (auto i = 0; i < tokenStr.size(); i += len)
+        std::cout << tokenStr.substr(i, len) << std::endl;
+
+    std::cout << std::endl;
+}
+
+void
+startToken(boost::filesystem::path const& keyFile)
+{
+    using namespace ripple;
+
+    auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
+
+    if (keys.revoked())
+        throw std::runtime_error("Validator keys have been revoked.");
+
+    auto const token = keys.startValidatorToken();
+
+    if (!token)
+        throw std::runtime_error(
+            "Maximum number of tokens have already been generated.\n"
+            "Revoke validator keys if previous token has been compromised.");
+
+    // Update key file with new token sequence
+    keys.writeToFile(keyFile);
+
+    std::cout << *token << std::endl;
+
+    std::cout << std::endl;
+}
+
+/// Master signature input can be provided as hex- or base64-encoded. There is
+/// no structural way to check that it is valid other than trying to use it, so
+/// if the decoding succeeds, proceed.
+ripple::Blob
+decodeMasterSignature(std::string const& data)
+{
+    using namespace ripple;
+    if (auto const unHex = strUnHex(data))
+    {
+        return *unHex;
+    }
+
+    // base64_decode will decode as far as it can, and return partial data if
+    // the input is not valid. To ensure the input is valid, encode the result
+    // and check that they match. This is not the fastest possible way to check,
+    // but this app runs in human time scales, so it's ok.
+    if (auto const unBase64 = base64_decode(data);
+        base64_encode(unBase64) == data)
+    {
+        return Blob(unBase64.begin(), unBase64.end());
+    }
+
+    throw std::runtime_error("Invalid master signature");
+}
+
+void
+finishToken(std::string const& data, boost::filesystem::path const& keyFile)
+{
+    using namespace ripple;
+
+    auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
+
+    if (keys.revoked())
+        throw std::runtime_error("Validator keys have been revoked.");
+
+    auto const masterSig = decodeMasterSignature(data);
+
+    auto const token = keys.finishToken(masterSig);
 
     if (!token)
         throw std::runtime_error(
@@ -133,6 +256,62 @@ createRevocation(boost::filesystem::path const& keyFile)
         std::cout << "WARNING: This will revoke your validator keys!\n\n";
 
     auto const revocation = keys.revoke();
+
+    // Update key file with new token sequence
+    keys.writeToFile(keyFile);
+
+    std::cout
+        << "Update rippled.cfg file with these values and restart rippled:\n\n";
+    std::cout << "# validator public key: "
+              << toBase58(TokenType::NodePublic, keys.publicKey()) << "\n\n";
+    std::cout << "[validator_key_revocation]\n";
+
+    auto const len = 72;
+    for (auto i = 0; i < revocation.size(); i += len)
+        std::cout << revocation.substr(i, len) << std::endl;
+
+    std::cout << std::endl;
+}
+
+void
+startRevocation(boost::filesystem::path const& keyFile)
+{
+    using namespace ripple;
+
+    auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
+
+    if (keys.revoked())
+        std::cerr << "WARNING: Validator keys have already been revoked!\n\n";
+    else
+        std::cerr << "WARNING: This will revoke your validator keys!\n\n";
+
+    auto const revocation = keys.startRevoke();
+
+    // Update key file with new token sequence
+    keys.writeToFile(keyFile);
+
+    std::cout << revocation << std::endl;
+
+    std::cout << std::endl;
+}
+
+void
+finishRevocation(
+    std::string const& data,
+    boost::filesystem::path const& keyFile)
+{
+    using namespace ripple;
+
+    auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
+
+    if (keys.revoked())
+        std::cout << "WARNING: Validator keys have already been revoked!\n\n";
+    else
+        std::cout << "WARNING: This will revoke your validator keys!\n\n";
+
+    auto const masterSig = decodeMasterSignature(data);
+
+    auto const revocation = keys.finishRevoke(masterSig);
 
     // Update key file with new token sequence
     keys.writeToFile(keyFile);
@@ -262,6 +441,24 @@ signData(std::string const& data, boost::filesystem::path const& keyFile)
 }
 
 void
+signHexData(std::string const& data, boost::filesystem::path const& keyFile)
+{
+    using namespace ripple;
+
+    if (data.empty())
+        throw std::runtime_error(
+            "Syntax error: Must specify data string to sign");
+
+    auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
+
+    if (keys.revoked())
+        std::cout << "WARNING: Validator keys have been revoked!\n\n";
+
+    std::cout << keys.signHex(data) << std::endl;
+    std::cout << std::endl;
+}
+
+void
 generateManifest(
     std::string const& type,
     boost::filesystem::path const& keyFile)
@@ -313,6 +510,12 @@ runCommand(
         {"attest_domain", 0},
         {"show_manifest", 1},
         {"sign", 1},
+        {"sign_hex", 1},
+        {"create_external", 1},
+        {"start_token", 0},
+        {"finish_token", 1},
+        {"start_revoke_keys", 0},
+        {"finish_revoke_keys", 1},
     };
 
     auto const iArgs = commandArgs.find(command);
@@ -337,8 +540,20 @@ runCommand(
         attestDomain(keyFile);
     else if (command == "sign")
         signData(args[0], keyFile);
+    else if (command == "sign_hex")
+        signHexData(args[0], keyFile);
     else if (command == "show_manifest")
         generateManifest(args[0], keyFile);
+    else if (command == "create_external")
+        createExternal(args[0], keyFile);
+    else if (command == "start_token")
+        startToken(keyFile);
+    else if (command == "finish_token")
+        finishToken(args[0], keyFile);
+    else if (command == "start_revoke_keys")
+        startRevocation(keyFile);
+    else if (command == "finish_revoke_keys")
+        finishRevocation(args[0], keyFile);
 
     return 0;
 }
@@ -369,6 +584,8 @@ printHelp(const boost::program_options::options_description& desc)
            "     revoke_keys                   Revoke validator keys.\n"
            "     sign <data>                   Sign string with validator "
            "key.\n"
+           "     sign_hex <data>               Decode and sign hex string with "
+           "validator key.\n"
            "     show_manifest [hex|base64]    Displays the last generated "
            "manifest\n"
            "     set_domain <domain>           Associate a domain with the "
@@ -376,7 +593,18 @@ printHelp(const boost::program_options::options_description& desc)
            "     clear_domain                  Disassociate a domain from a "
            "validator key.\n"
            "     attest_domain                 Produce the attestation string "
-           "for a domain.\n";
+           "for a domain.\n"
+           "Commands for signing externally: \n"
+           "     create_external <public key>  Generate validator keys without "
+           "a secret.\n"
+           "     start_token                   Generate a partial token for "
+           "external signing.\n"
+           "     finish_token <sig>            Finish generating token with "
+           "external signature.\n"
+           "     start_revoke_keys             Generate a partial revocation "
+           "for external signing.\n"
+           "     finish_revoke_keys <sig>      Finish generating revocation "
+           "with external signature.\n";
 }
 // LCOV_EXCL_STOP
 

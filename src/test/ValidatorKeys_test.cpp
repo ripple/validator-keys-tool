@@ -90,6 +90,7 @@ private:
             try
             {
                 ValidatorKeys::make_ValidatorKeys(keyFile);
+                fail();
             }
             catch (std::runtime_error& e)
             {
@@ -109,6 +110,7 @@ private:
             try
             {
                 ValidatorKeys::make_ValidatorKeys(keyFile);
+                fail();
             }
             catch (std::runtime_error& e)
             {
@@ -224,6 +226,15 @@ private:
                     HashPrefix::manifest,
                     keys.publicKey(),
                     sfMasterSignature));
+
+                try
+                {
+                    keys.verifyManifest();
+                }
+                catch (std::exception const& e)
+                {
+                    fail(e.what());
+                }
             }
         }
 
@@ -264,13 +275,26 @@ private:
             BEAST_EXPECT(*pk == keys.publicKey());
             BEAST_EXPECT(verify(
                 st, HashPrefix::manifest, keys.publicKey(), sfMasterSignature));
+
+            try
+            {
+                keys.verifyManifest();
+            }
+            catch (std::exception const& e)
+            {
+                fail(e.what());
+            }
         }
     }
 
     void
-    testSign()
+    signWorker(
+        std::function<std::string(std::string const&)> modifyFunc,
+        std::function<std::string(ValidatorKeys const&, std::string const&)>
+            signFunc)
     {
-        testcase("Sign");
+        std::string const rawdata = "data to sign";
+        std::string const data = modifyFunc(rawdata);
 
         std::map<KeyType, std::string> expected(
             {{KeyType::ed25519,
@@ -282,22 +306,57 @@ private:
               "51A388A422DFDA6F4B470A2113ABC4022002DA56695F3A805F62B55E7CC8D5"
               "55438D64A229CD0B4BA2AE33402443B20409"}});
 
-        std::string const data = "data to sign";
-
         for (auto const keyType : keyTypes)
         {
             auto const sk = generateSecretKey(keyType, generateSeed("test"));
             ValidatorKeys keys(keyType, sk, 1);
 
-            auto const signature = keys.sign(data);
+            {
+                ValidatorKeys pkOnly(keyType, derivePublicKey(keyType, sk));
+                try
+                {
+                    signFunc(pkOnly, data);
+                    fail();
+                }
+                catch (std::exception const& e)
+                {
+                    using namespace std::string_literals;
+                    BEAST_EXPECT(
+                        e.what() == "This key file cannot be used to sign."s);
+                }
+            }
+
+            auto const signature = signFunc(keys, data);
             BEAST_EXPECT(expected[keyType] == signature);
 
             auto const ret = strUnHex(signature);
             BEAST_EXPECT(ret);
             BEAST_EXPECT(ret->size());
             BEAST_EXPECT(
-                verify(keys.publicKey(), makeSlice(data), makeSlice(*ret)));
+                verify(keys.publicKey(), makeSlice(rawdata), makeSlice(*ret)));
         }
+    }
+
+    void
+    testSign()
+    {
+        testcase("Sign");
+
+        signWorker(
+            [](auto const& data) { return data; },
+            [](auto const& keys, auto const& data) { return keys.sign(data); });
+    }
+
+    void
+    testSignHex()
+    {
+        testcase("Sign Hex");
+
+        signWorker(
+            [](auto const& data) { return strHex(data); },
+            [](auto const& keys, auto const& data) {
+                return keys.signHex(data);
+            });
     }
 
     void
@@ -318,15 +377,20 @@ private:
             keys.writeToFile(keyFile);
             BEAST_EXPECT(exists(keyFile));
 
-            auto fileKeys = ValidatorKeys::make_ValidatorKeys(keyFile);
-            BEAST_EXPECT(keys == fileKeys);
+            {
+                auto fileKeys = ValidatorKeys::make_ValidatorKeys(keyFile);
+                BEAST_EXPECT(keys == fileKeys);
 
-            // Overwrite file with new sequence
-            keys.createValidatorToken(KeyType::secp256k1);
-            keys.writeToFile(keyFile);
+                // Overwrite file with new sequence
+                keys.createValidatorToken(KeyType::secp256k1);
+                keys.writeToFile(keyFile);
+            }
 
-            fileKeys = ValidatorKeys::make_ValidatorKeys(keyFile);
-            BEAST_EXPECT(keys == fileKeys);
+            {
+                auto const fileKeys =
+                    ValidatorKeys::make_ValidatorKeys(keyFile);
+                BEAST_EXPECT(keys == fileKeys);
+            }
         }
         {
             // Write to key file in current relative directory
@@ -368,6 +432,7 @@ private:
             try
             {
                 keys.writeToFile(badKeyFile);
+                fail();
             }
             catch (std::runtime_error& e)
             {
@@ -384,12 +449,337 @@ private:
             try
             {
                 keys.writeToFile(conflictingPath);
+                fail();
             }
             catch (std::runtime_error& e)
             {
                 error = e.what();
             }
             BEAST_EXPECT(error == expectedError);
+        }
+    }
+
+    ////////////////////////////////////////////
+    // Tests related to using external keys
+    //
+    // These tests will use two ValidatorKeys objects,
+    // one with a secret key representing the external
+    // signing mechanism, and one only containing the
+    // public key from the first representing the real
+    // worker.
+    ////////////////////////////////////////////
+
+    void
+    testExternalMakeValidatorKeys()
+    {
+        testcase("Make External Validator Keys");
+
+        using namespace boost::filesystem;
+
+        path const subdir = "test_key_file";
+        path const externalKeyFile = subdir / "validator_keys_external.json";
+        path const keyFile = subdir / "validator_keys.json";
+
+        for (auto const keyType : keyTypes)
+        {
+            ValidatorKeys const externalKeys(keyType);
+
+            KeyFileGuard const g(*this, subdir.string());
+
+            externalKeys.writeToFile(externalKeyFile);
+            BEAST_EXPECT(exists(externalKeyFile));
+
+            ValidatorKeys const keys(keyType, externalKeys.publicKey());
+            keys.writeToFile(keyFile);
+            BEAST_EXPECT(exists(keyFile));
+
+            auto const keys2 = ValidatorKeys::make_ValidatorKeys(keyFile);
+            BEAST_EXPECT(keys == keys2);
+        }
+        {
+            // Require expected fields
+            KeyFileGuard g(*this, subdir.string());
+
+            auto expectedError = "Failed to open key file: " + keyFile.string();
+            std::string error;
+
+            Json::Value jv;
+            jv["key_type"] = "dummy keytype";
+
+            jv["secret_key"] = "external";
+            expectedError = "Key file '" + keyFile.string() +
+                "' is missing \"token_sequence\" field";
+            testKeyFile(keyFile, jv, expectedError);
+
+            jv["token_sequence"] = "dummy sequence";
+            expectedError = "Key file '" + keyFile.string() +
+                "' is missing \"revoked\" field";
+            testKeyFile(keyFile, jv, expectedError);
+
+            jv["revoked"] = "dummy revoked";
+            expectedError = "Key file '" + keyFile.string() +
+                "' contains invalid \"key_type\" field: " +
+                jv["key_type"].toStyledString();
+            testKeyFile(keyFile, jv, expectedError);
+
+            auto const keyType = KeyType::ed25519;
+            jv["key_type"] = to_string(keyType);
+            expectedError = "Key file '" + keyFile.string() +
+                "' is missing \"public_key\" field";
+            testKeyFile(keyFile, jv, expectedError);
+
+            jv["public_key"] = "dummy public";
+            expectedError = "Key file '" + keyFile.string() +
+                "' contains invalid \"public_key\" field: " +
+                jv["public_key"].toStyledString();
+            testKeyFile(keyFile, jv, expectedError);
+
+            ValidatorKeys const keys(keyType);
+            {
+                auto const kp = generateKeyPair(keyType, randomSeed());
+                jv["public_key"] = toBase58(TokenType::NodePublic, kp.first);
+            }
+            expectedError = "Key file '" + keyFile.string() +
+                "' contains invalid \"token_sequence\" field: " +
+                jv["token_sequence"].toStyledString();
+            testKeyFile(keyFile, jv, expectedError);
+
+            jv["token_sequence"] = -1;
+            expectedError = "Key file '" + keyFile.string() +
+                "' contains invalid \"token_sequence\" field: " +
+                jv["token_sequence"].toStyledString();
+            testKeyFile(keyFile, jv, expectedError);
+
+            jv["token_sequence"] =
+                Json::UInt(std::numeric_limits<std::uint32_t>::max());
+            expectedError = "Key file '" + keyFile.string() +
+                "' contains invalid \"revoked\" field: " +
+                jv["revoked"].toStyledString();
+            testKeyFile(keyFile, jv, expectedError);
+
+            jv["revoked"] = false;
+            expectedError = "";
+            testKeyFile(keyFile, jv, expectedError);
+
+            jv["revoked"] = true;
+            testKeyFile(keyFile, jv, expectedError);
+        }
+    }
+
+    void
+    testExternalCreateValidatorToken()
+    {
+        testcase("Create External Validator Token");
+
+        using namespace std::string_literals;
+
+        for (auto const keyType : keyTypes)
+        {
+            ValidatorKeys const externalKeys(keyType);
+            ValidatorKeys keys(keyType, externalKeys.publicKey());
+            std::uint32_t sequence = 0;
+
+            for (auto const tokenKeyType : keyTypes)
+            {
+                try
+                {
+                    auto const token = keys.createValidatorToken(tokenKeyType);
+                    fail();
+                }
+                catch (std::exception const& e)
+                {
+                    BEAST_EXPECT(
+                        e.what() ==
+                        "This key file cannot be used to sign tokens."s);
+                }
+
+                auto const start = keys.startValidatorToken(tokenKeyType);
+
+                if (!BEAST_EXPECT(start))
+                    continue;
+
+                auto const sig = externalKeys.signHex(*start);
+                auto const sigBlob = strUnHex(sig);
+                if (!BEAST_EXPECT(sigBlob))
+                    continue;
+                auto const token = keys.finishToken(*sigBlob);
+
+                if (!BEAST_EXPECT(token))
+                    continue;
+
+                auto const tokenPublicKey =
+                    derivePublicKey(tokenKeyType, token->secretKey);
+
+                STObject st(sfGeneric);
+                auto const manifest = ripple::base64_decode(token->manifest);
+                SerialIter sit(manifest.data(), manifest.size());
+                st.set(sit);
+
+                auto const seq = get(st, sfSequence);
+                BEAST_EXPECT(seq);
+                BEAST_EXPECT(*seq == ++sequence);
+
+                auto const tpk = get<PublicKey>(st, sfSigningPubKey);
+                BEAST_EXPECT(tpk);
+                BEAST_EXPECT(*tpk == tokenPublicKey);
+                BEAST_EXPECT(verify(st, HashPrefix::manifest, tokenPublicKey));
+
+                auto const pk = get<PublicKey>(st, sfPublicKey);
+                BEAST_EXPECT(pk);
+                BEAST_EXPECT(*pk == keys.publicKey());
+                BEAST_EXPECT(verify(
+                    st,
+                    HashPrefix::manifest,
+                    keys.publicKey(),
+                    sfMasterSignature));
+
+                try
+                {
+                    keys.verifyManifest();
+                }
+                catch (std::exception const& e)
+                {
+                    fail(e.what());
+                }
+            }
+        }
+
+        auto const keyType = KeyType::ed25519;
+        auto const kp = generateKeyPair(keyType, randomSeed());
+
+        {
+            // The next sequence is the special "revoked" value
+            auto keys = ValidatorKeys(
+                keyType,
+                kp.first,
+                std::numeric_limits<std::uint32_t>::max() - 1);
+
+            BEAST_EXPECT(!keys.startValidatorToken(keyType));
+        }
+
+        {
+            // Key is revoked
+            auto keys = ValidatorKeys(
+                keyType, kp.first, std::numeric_limits<std::uint32_t>::max());
+
+            BEAST_EXPECT(!keys.startValidatorToken(keyType));
+        }
+    }
+
+    void
+    testExternalRevoke()
+    {
+        testcase("External Revoke");
+
+        using namespace std::string_literals;
+
+        for (auto const keyType : keyTypes)
+        {
+            ValidatorKeys const externalKeys(keyType);
+            ValidatorKeys keys(keyType, externalKeys.publicKey());
+
+            try
+            {
+                auto const revocation = keys.revoke();
+                fail();
+            }
+            catch (std::exception const& e)
+            {
+                BEAST_EXPECT(
+                    e.what() ==
+                    "This key file cannot be used to sign tokens."s);
+            }
+            auto const start = keys.startRevoke();
+            auto const sig = externalKeys.signHex(start);
+            auto const sigBlob = strUnHex(sig);
+            if (!BEAST_EXPECT(sigBlob))
+                continue;
+
+            auto const revocation = keys.finishRevoke(*sigBlob);
+
+            STObject st(sfGeneric);
+            auto const manifest = ripple::base64_decode(revocation);
+            SerialIter sit(manifest.data(), manifest.size());
+            st.set(sit);
+
+            auto const seq = get(st, sfSequence);
+            BEAST_EXPECT(seq);
+            BEAST_EXPECT(*seq == std::numeric_limits<std::uint32_t>::max());
+
+            auto const pk = get(st, sfPublicKey);
+            BEAST_EXPECT(pk);
+            BEAST_EXPECT(*pk == keys.publicKey());
+            BEAST_EXPECT(verify(
+                st, HashPrefix::manifest, keys.publicKey(), sfMasterSignature));
+
+            try
+            {
+                keys.verifyManifest();
+            }
+            catch (std::exception const& e)
+            {
+                fail(e.what());
+            }
+        }
+    }
+
+    void
+    testExternalWriteToFile()
+    {
+        testcase("External Write to File");
+
+        using namespace boost::filesystem;
+
+        auto const keyType = KeyType::ed25519;
+        ValidatorKeys const externalKeys(keyType);
+        ValidatorKeys keys(keyType, externalKeys.publicKey());
+
+        {
+            path const subdir = "test_key_file";
+            path const keyFile = subdir / "validator_keys.json";
+            KeyFileGuard g(*this, subdir.string());
+
+            keys.writeToFile(keyFile);
+            BEAST_EXPECT(exists(keyFile));
+
+            {
+                auto const sigBlob = [&]() -> std::optional<Blob> {
+                    auto fileKeys = ValidatorKeys::make_ValidatorKeys(keyFile);
+                    BEAST_EXPECT(keys == fileKeys);
+
+                    // Prepare to write new sequence
+                    auto const start =
+                        keys.startValidatorToken(KeyType::secp256k1);
+                    if (!BEAST_EXPECT(start))
+                        return std::nullopt;
+                    // keys looks the same as the original file (though
+                    // the pending fields have changed)
+                    BEAST_EXPECT(keys == fileKeys);
+                    keys.writeToFile(keyFile);
+
+                    auto const sig = externalKeys.signHex(*start);
+                    auto const sigBlob = strUnHex(sig);
+                    return sigBlob;
+                }();
+                auto fileKeys = ValidatorKeys::make_ValidatorKeys(keyFile);
+                BEAST_EXPECT(keys == fileKeys);
+
+                if (!sigBlob)
+                    return;
+
+                // Overwrite file with new sequence
+                auto const token = keys.finishToken(*sigBlob);
+                if (!BEAST_EXPECT(token))
+                    return;
+                BEAST_EXPECT(keys != fileKeys);
+                keys.writeToFile(keyFile);
+            }
+
+            {
+                auto const fileKeys =
+                    ValidatorKeys::make_ValidatorKeys(keyFile);
+                BEAST_EXPECT(keys == fileKeys);
+            }
         }
     }
 
@@ -401,7 +791,13 @@ public:
         testCreateValidatorToken();
         testRevoke();
         testSign();
+        testSignHex();
         testWriteToFile();
+        // External
+        testExternalMakeValidatorKeys();
+        testExternalCreateValidatorToken();
+        testExternalRevoke();
+        testExternalWriteToFile();
     }
 };
 
