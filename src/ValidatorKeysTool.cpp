@@ -1,23 +1,3 @@
-//------------------------------------------------------------------------------
-/*
-    This file is part of validator-keys-tool:
-        https://github.com/ripple/validator-keys-tool
-    Copyright (c) 2016 Ripple Labs Inc.
-
-    Permission to use, copy, modify, and/or distribute this software for any
-    purpose  with  or without fee is hereby granted, provided that the above
-    copyright notice and this permission notice appear in all copies.
-
-    THE  SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-    WITH  REGARD  TO  THIS  SOFTWARE  INCLUDING  ALL  IMPLIED  WARRANTIES  OF
-    MERCHANTABILITY  AND  FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-    ANY  SPECIAL ,  DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-    WHATSOEVER  RESULTING  FROM  LOSS  OF USE, DATA OR PROFITS, WHETHER IN AN
-    ACTION  OF  CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-*/
-//==============================================================================
-
 #include <ValidatorKeys.h>
 #include <ValidatorKeysTool.h>
 
@@ -73,7 +53,7 @@ runUnitTests()
 void
 createKeyFile(boost::filesystem::path const& keyFile)
 {
-    using namespace ripple;
+    using namespace xrpl;
 
     if (exists(keyFile))
         throw std::runtime_error(
@@ -89,7 +69,7 @@ createKeyFile(boost::filesystem::path const& keyFile)
 void
 createToken(boost::filesystem::path const& keyFile)
 {
-    using namespace ripple;
+    using namespace xrpl;
 
     auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
 
@@ -107,7 +87,7 @@ createToken(boost::filesystem::path const& keyFile)
     keys.writeToFile(keyFile);
 
     std::cout
-        << "Update rippled.cfg file with these values and restart rippled:\n\n";
+        << "Update rippled.cfg file with these values and restart xrpld:\n\n";
     std::cout << "# validator public key: "
               << toBase58(TokenType::NodePublic, keys.publicKey()) << "\n\n";
     std::cout << "[validator_token]\n";
@@ -123,7 +103,7 @@ createToken(boost::filesystem::path const& keyFile)
 void
 createRevocation(boost::filesystem::path const& keyFile)
 {
-    using namespace ripple;
+    using namespace xrpl;
 
     auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
 
@@ -138,7 +118,7 @@ createRevocation(boost::filesystem::path const& keyFile)
     keys.writeToFile(keyFile);
 
     std::cout
-        << "Update rippled.cfg file with these values and restart rippled:\n\n";
+        << "Update rippled.cfg file with these values and restart xrpld:\n\n";
     std::cout << "# validator public key: "
               << toBase58(TokenType::NodePublic, keys.publicKey()) << "\n\n";
     std::cout << "[validator_key_revocation]\n";
@@ -151,9 +131,9 @@ createRevocation(boost::filesystem::path const& keyFile)
 }
 
 void
-attestDomain(ripple::ValidatorKeys const& keys)
+attestDomain(xrpl::ValidatorKeys const& keys)
 {
-    using namespace ripple;
+    using namespace xrpl;
 
     if (keys.domain().empty())
     {
@@ -180,7 +160,7 @@ attestDomain(ripple::ValidatorKeys const& keys)
 void
 attestDomain(boost::filesystem::path const& keyFile)
 {
-    using namespace ripple;
+    using namespace xrpl;
 
     auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
 
@@ -194,7 +174,7 @@ attestDomain(boost::filesystem::path const& keyFile)
 void
 setDomain(std::string const& domain, boost::filesystem::path const& keyFile)
 {
-    using namespace ripple;
+    using namespace xrpl;
 
     auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
 
@@ -230,7 +210,7 @@ setDomain(std::string const& domain, boost::filesystem::path const& keyFile)
 
     std::cout << "\n";
     std::cout << "You also need to update the rippled.cfg file to add a new\n";
-    std::cout << "validator token and restart rippled:\n\n";
+    std::cout << "validator token and restart xrpld:\n\n";
     std::cout << "# validator public key: "
               << toBase58(TokenType::NodePublic, keys.publicKey()) << "\n\n";
     std::cout << "[validator_token]\n";
@@ -246,7 +226,7 @@ setDomain(std::string const& domain, boost::filesystem::path const& keyFile)
 void
 signData(std::string const& data, boost::filesystem::path const& keyFile)
 {
-    using namespace ripple;
+    using namespace xrpl;
 
     if (data.empty())
         throw std::runtime_error(
@@ -266,7 +246,7 @@ generateManifest(
     std::string const& type,
     boost::filesystem::path const& keyFile)
 {
-    using namespace ripple;
+    using namespace xrpl;
 
     auto keys = ValidatorKeys::make_ValidatorKeys(keyFile);
 

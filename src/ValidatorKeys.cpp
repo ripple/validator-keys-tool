@@ -1,23 +1,3 @@
-//------------------------------------------------------------------------------
-/*
-    This file is part of validator-keys-tool:
-        https://github.com/ripple/validator-keys-tool
-    Copyright (c) 2016 Ripple Labs Inc.
-
-    Permission to use, copy, modify, and/or distribute this software for any
-    purpose  with  or without fee is hereby granted, provided that the above
-    copyright notice and this permission notice appear in all copies.
-
-    THE  SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-    WITH  REGARD  TO  THIS  SOFTWARE  INCLUDING  ALL  IMPLIED  WARRANTIES  OF
-    MERCHANTABILITY  AND  FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-    ANY  SPECIAL ,  DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-    WHATSOEVER  RESULTING  FROM  LOSS  OF USE, DATA OR PROFITS, WHETHER IN AN
-    ACTION  OF  CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-*/
-//==============================================================================
-
 #include <ValidatorKeys.h>
 
 #include <xrpl/basics/StringUtilities.h>
@@ -33,7 +13,7 @@
 
 #include <fstream>
 
-namespace ripple {
+namespace xrpl {
 
 std::string
 ValidatorToken::toString() const
@@ -42,7 +22,7 @@ ValidatorToken::toString() const
     jv["validation_secret_key"] = strHex(secretKey);
     jv["manifest"] = manifest;
 
-    return ripple::base64_encode(to_string(jv));
+    return xrpl::base64_encode(to_string(jv));
 }
 
 ValidatorKeys::ValidatorKeys(KeyType const& keyType)
@@ -229,8 +209,8 @@ ValidatorKeys::createValidatorToken(KeyType const& keyType)
     if (!domain_.empty())
         st[sfDomain] = makeSlice(domain_);
 
-    ripple::sign(st, HashPrefix::manifest, keyType, tokenSecret);
-    ripple::sign(
+    xrpl::sign(st, HashPrefix::manifest, keyType, tokenSecret);
+    xrpl::sign(
         st, HashPrefix::manifest, keyType_, keys_.secretKey, sfMasterSignature);
 
     Serializer s;
@@ -241,7 +221,7 @@ ValidatorKeys::createValidatorToken(KeyType const& keyType)
     std::copy(s.begin(), s.end(), std::back_inserter(manifest_));
 
     return ValidatorToken{
-        ripple::base64_encode(manifest_.data(), manifest_.size()), tokenSecret};
+        xrpl::base64_encode(manifest_.data(), manifest_.size()), tokenSecret};
 }
 
 std::string
@@ -253,7 +233,7 @@ ValidatorKeys::revoke()
     st[sfSequence] = std::numeric_limits<std::uint32_t>::max();
     st[sfPublicKey] = keys_.publicKey;
 
-    ripple::sign(
+    xrpl::sign(
         st, HashPrefix::manifest, keyType_, keys_.secretKey, sfMasterSignature);
 
     Serializer s;
@@ -263,14 +243,14 @@ ValidatorKeys::revoke()
     manifest_.reserve(s.size());
     std::copy(s.begin(), s.end(), std::back_inserter(manifest_));
 
-    return ripple::base64_encode(manifest_.data(), manifest_.size());
+    return xrpl::base64_encode(manifest_.data(), manifest_.size());
 }
 
 std::string
 ValidatorKeys::sign(std::string const& data) const
 {
     return strHex(
-        ripple::sign(keys_.publicKey, keys_.secretKey, makeSlice(data)));
+        xrpl::sign(keys_.publicKey, keys_.secretKey, makeSlice(data)));
 }
 
 void
@@ -311,4 +291,4 @@ ValidatorKeys::domain(std::string d)
     domain_ = std::move(d);
 }
 
-}  // namespace ripple
+}  // namespace xrpl
