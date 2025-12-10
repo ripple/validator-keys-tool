@@ -47,7 +47,7 @@ validator token:
 Sample output:
 
 ```
-  Update rippled.cfg file with these values:
+  Update xrpld.cfg file with these values:
 
   # validator public key: nHUtNnLVx7odrz5dnfb2xpIgbEeJPbzJWfdicSkGyVw1eE5GpjQr
 
@@ -85,7 +85,7 @@ Sample output:
 ```
   WARNING: This will revoke your validator keys!
 
-  Update rippled.cfg file with these values and restart rippled:
+  Update xrpld.cfg file with these values and restart rippled:
 
   # validator public key: nHUtNnLVx7odrz5dnfb2xpIgbEeJPbzJWfdicSkGyVw1eE5GpjQr
 
