@@ -5,9 +5,11 @@
 #include <xrpl/json/json_reader.h>
 #include <xrpl/json/to_string.h>
 #include <xrpl/protocol/HashPrefix.h>
+#include <xrpl/protocol/Serializer.h>
 #include <xrpl/protocol/Sign.h>
 
 #include <boost/algorithm/clamp.hpp>
+#include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/regex.hpp>
 
@@ -27,9 +29,9 @@ ValidatorToken::toString() const
 
 ValidatorKeys::ValidatorKeys(KeyType const& keyType)
     : keyType_(keyType)
+    , keys_(generateKeyPair(keyType_, randomSeed()))
     , tokenSequence_(0)
     , revoked_(false)
-    , keys_(generateKeyPair(keyType_, randomSeed()))
 {
 }
 
@@ -39,9 +41,21 @@ ValidatorKeys::ValidatorKeys(
     std::uint32_t tokenSequence,
     bool revoked)
     : keyType_(keyType)
+    , keys_({derivePublicKey(keyType_, secretKey), secretKey})
     , tokenSequence_(tokenSequence)
     , revoked_(revoked)
-    , keys_({derivePublicKey(keyType_, secretKey), secretKey})
+{
+}
+
+ValidatorKeys::ValidatorKeys(
+    KeyType const& keyType,
+    PublicKey const& publicKey,
+    std::uint32_t tokenSequence,
+    bool revoked)
+    : keyType_(keyType)
+    , keys_(publicKey)
+    , tokenSequence_(tokenSequence)
+    , revoked_(revoked)
 {
 }
 
@@ -87,13 +101,33 @@ ValidatorKeys::make_ValidatorKeys(boost::filesystem::path const& keyFile)
     auto const secret = parseBase58<SecretKey>(
         TokenType::NodePrivate, jKeys["secret_key"].asString());
 
-    if (!secret)
-    {
-        throw std::runtime_error(
-            "Key file '" + keyFile.string() +
-            "' contains invalid \"secret_key\" field: " +
-            jKeys["secret_key"].toStyledString());
-    }
+    auto const pubKey = [&]() -> std::optional<PublicKey> {
+        if (jKeys["secret_key"].asString() == "external")
+        {
+            if (!jKeys.isMember("public_key"))
+            {
+                throw std::runtime_error(
+                    "Key file '" + keyFile.string() +
+                    "' is missing \"public_key\" field");
+            }
+            auto const pubKey = parseBase58<PublicKey>(
+                TokenType::NodePublic, jKeys["public_key"].asString());
+            if (!pubKey)
+                throw std::runtime_error(
+                    "Key file '" + keyFile.string() +
+                    "' contains invalid \"public_key\" field: " +
+                    jKeys["public_key"].toStyledString());
+            return pubKey;
+        }
+        else if (!secret)
+        {
+            throw std::runtime_error(
+                "Key file '" + keyFile.string() +
+                "' contains invalid \"secret_key\" field: " +
+                jKeys["secret_key"].toStyledString());
+        }
+        return std::nullopt;
+    }();
 
     std::uint32_t tokenSequence;
     try
@@ -117,8 +151,17 @@ ValidatorKeys::make_ValidatorKeys(boost::filesystem::path const& keyFile)
             "' contains invalid \"revoked\" field: " +
             jKeys["revoked"].toStyledString());
 
-    ValidatorKeys vk(
-        *keyType, *secret, tokenSequence, jKeys["revoked"].asBool());
+    ValidatorKeys vk = [&]() {
+        if (secret)
+            return ValidatorKeys(
+                *keyType, *secret, tokenSequence, jKeys["revoked"].asBool());
+        else
+        {
+            assert(*keyType == *publicKeyType(*pubKey));
+            return ValidatorKeys(
+                *keyType, *pubKey, tokenSequence, jKeys["revoked"].asBool());
+        }
+    }();
 
     if (jKeys.isMember("domain"))
     {
@@ -152,6 +195,40 @@ ValidatorKeys::make_ValidatorKeys(boost::filesystem::path const& keyFile)
         std::copy(ret->begin(), ret->end(), std::back_inserter(vk.manifest_));
     }
 
+    if (jKeys.isMember("pending_token_secret"))
+    {
+        if (!jKeys["pending_token_secret"].isString())
+            throw std::runtime_error(
+                "Key file '" + keyFile.string() +
+                "' contains invalid \"pending_token_secret\" field: " +
+                jKeys["pending_token_secret"].toStyledString());
+
+        vk.pendingTokenSecret_ = parseBase58<SecretKey>(
+            TokenType::NodePrivate, jKeys["pending_token_secret"].asString());
+
+        if (!vk.pendingTokenSecret_)
+        {
+            throw std::runtime_error(
+                "Key file '" + keyFile.string() +
+                "' contains invalid \"pending_token_secret\" field: " +
+                jKeys["pending_manifest"].toStyledString());
+        }
+    }
+
+    if (jKeys.isMember("pending_key_type"))
+    {
+        auto const keyType =
+            keyTypeFromString(jKeys["pending_key_type"].asString());
+        if (!keyType)
+        {
+            throw std::runtime_error(
+                "Key file '" + keyFile.string() +
+                "' contains invalid \"pending_key_type\" field: " +
+                jKeys["key_type"].toStyledString());
+        }
+        vk.pendingKeyType_ = keyType;
+    }
+
     return vk;
 }
 
@@ -163,13 +240,20 @@ ValidatorKeys::writeToFile(boost::filesystem::path const& keyFile) const
     Json::Value jv;
     jv["key_type"] = to_string(keyType_);
     jv["public_key"] = toBase58(TokenType::NodePublic, keys_.publicKey);
-    jv["secret_key"] = toBase58(TokenType::NodePrivate, keys_.secretKey);
+    jv["secret_key"] = keys_.secretKey
+        ? toBase58(TokenType::NodePrivate, *keys_.secretKey)
+        : "external";
     jv["token_sequence"] = Json::UInt(tokenSequence_);
     jv["revoked"] = revoked_;
     if (!domain_.empty())
         jv["domain"] = domain_;
     if (!manifest_.empty())
         jv["manifest"] = strHex(makeSlice(manifest_));
+    if (pendingTokenSecret_)
+        jv["pending_token_secret"] =
+            toBase58(TokenType::NodePrivate, *pendingTokenSecret_);
+    if (pendingKeyType_)
+        jv["pending_key_type"] = to_string(*pendingKeyType_);
 
     if (!keyFile.parent_path().empty())
     {
@@ -189,6 +273,57 @@ ValidatorKeys::writeToFile(boost::filesystem::path const& keyFile) const
     o << jv.toStyledString();
 }
 
+void
+ValidatorKeys::verifyManifest() const
+{
+    STObject st(sfGeneric);
+    SerialIter sit(manifest_.data(), manifest_.size());
+    st.set(sit);
+
+    auto fail = []() {
+        throw std::runtime_error("Manifest is not properly signed");
+    };
+    auto const tpk = get<PublicKey>(st, sfSigningPubKey);
+    if (revoked() && tpk)
+        fail();
+
+    if (!revoked() && (!tpk || !verify(st, HashPrefix::manifest, *tpk)))
+        fail();
+
+    auto const pk = get<PublicKey>(st, sfPublicKey);
+    if (!pk || !verify(st, HashPrefix::manifest, *pk, sfMasterSignature))
+        fail();
+}
+
+// Helper functions
+[[nodiscard]] STObject
+generatePartialManifest(
+    uint32_t sequence,
+    PublicKey const& masterPubKey,
+    PublicKey const& signingPubKey,
+    std::string const& domain)
+{
+    STObject st(sfGeneric);
+    st[sfSequence] = sequence;
+    st[sfPublicKey] = masterPubKey;
+    st[sfSigningPubKey] = signingPubKey;
+
+    if (!domain.empty())
+        st[sfDomain] = makeSlice(domain);
+
+    return st;
+}
+
+[[nodiscard]] STObject
+generatePartialRevocation(PublicKey const& masterPubKey)
+{
+    STObject st(sfGeneric);
+    st[sfSequence] = std::numeric_limits<std::uint32_t>::max();
+    st[sfPublicKey] = masterPubKey;
+
+    return st;
+}
+
 boost::optional<ValidatorToken>
 ValidatorKeys::createValidatorToken(KeyType const& keyType)
 {
@@ -196,29 +331,75 @@ ValidatorKeys::createValidatorToken(KeyType const& keyType)
         std::numeric_limits<std::uint32_t>::max() - 1 <= tokenSequence_)
         return boost::none;
 
+    // Invalid secret key
+    if (!keys_.secretKey)
+        throw std::runtime_error(
+            "This key file cannot be used to sign tokens.");
+
     ++tokenSequence_;
 
     auto const tokenSecret = generateSecretKey(keyType, randomSeed());
     auto const tokenPublic = derivePublicKey(keyType, tokenSecret);
 
-    STObject st(sfGeneric);
-    st[sfSequence] = tokenSequence_;
-    st[sfPublicKey] = keys_.publicKey;
-    st[sfSigningPubKey] = tokenPublic;
-
-    if (!domain_.empty())
-        st[sfDomain] = makeSlice(domain_);
+    STObject st = generatePartialManifest(
+        tokenSequence_, keys_.publicKey, tokenPublic, domain_);
 
     xrpl::sign(st, HashPrefix::manifest, keyType, tokenSecret);
     xrpl::sign(
-        st, HashPrefix::manifest, keyType_, keys_.secretKey, sfMasterSignature);
+        st, HashPrefix::manifest, keyType_, *keys_.secretKey, sfMasterSignature);
+
+    setManifest(st);
+
+    return ValidatorToken{
+        xrpl::base64_encode(manifest_.data(), manifest_.size()), tokenSecret};
+}
+
+boost::optional<std::string>
+ValidatorKeys::startValidatorToken(KeyType const& keyType) const
+{
+    if (revoked() ||
+        std::numeric_limits<std::uint32_t>::max() - 1 <= tokenSequence_)
+        return boost::none;
+
+    auto const tokenSecret = generateSecretKey(keyType, randomSeed());
+    auto const tokenPublic = derivePublicKey(keyType, tokenSecret);
+
+    // Generate the next manifest with the next sequence number, but
+    // don't update until it's been signed
+    STObject st = generatePartialManifest(
+        tokenSequence_ + 1, keys_.publicKey, tokenPublic, domain_);
 
     Serializer s;
-    st.add(s);
+    s.add32(HashPrefix::manifest);
+    st.addWithoutSigningFields(s);
 
-    manifest_.clear();
-    manifest_.reserve(s.size());
-    std::copy(s.begin(), s.end(), std::back_inserter(manifest_));
+    pendingTokenSecret_ = tokenSecret;
+    pendingKeyType_ = keyType;
+
+    return strHex(s.peekData());
+}
+
+boost::optional<ValidatorToken>
+ValidatorKeys::finishToken(Blob const& masterSig)
+{
+    if (revoked())
+        return boost::none;
+
+    if (!pendingTokenSecret_ || !pendingKeyType_)
+        throw std::runtime_error("No pending token to finish");
+
+    ++tokenSequence_;
+
+    auto const tokenSecret = *pendingTokenSecret_;
+    auto const tokenPublic = derivePublicKey(*pendingKeyType_, tokenSecret);
+
+    STObject st = generatePartialManifest(
+        tokenSequence_, keys_.publicKey, tokenPublic, domain_);
+
+    ripple::sign(st, HashPrefix::manifest, *pendingKeyType_, tokenSecret);
+    st[sfMasterSignature] = makeSlice(masterSig);
+
+    setManifest(st);
 
     return ValidatorToken{
         xrpl::base64_encode(manifest_.data(), manifest_.size()), tokenSecret};
@@ -227,15 +408,61 @@ ValidatorKeys::createValidatorToken(KeyType const& keyType)
 std::string
 ValidatorKeys::revoke()
 {
+    // Invalid secret key
+    if (!keys_.secretKey)
+        throw std::runtime_error(
+            "This key file cannot be used to sign tokens.");
+
     revoked_ = true;
 
-    STObject st(sfGeneric);
-    st[sfSequence] = std::numeric_limits<std::uint32_t>::max();
-    st[sfPublicKey] = keys_.publicKey;
+    STObject st = generatePartialRevocation(keys_.publicKey);
 
     xrpl::sign(
-        st, HashPrefix::manifest, keyType_, keys_.secretKey, sfMasterSignature);
+        st,
+        HashPrefix::manifest,
+        keyType_,
+        *keys_.secretKey,
+        sfMasterSignature);
 
+    setManifest(st);
+
+    return xrpl::base64_encode(manifest_.data(), manifest_.size());
+}
+
+std::string
+ValidatorKeys::startRevoke() const
+{
+    // Generate the revocation manifest, but
+    // don't update until it's been signed
+    STObject st = generatePartialRevocation(keys_.publicKey);
+
+    Serializer s;
+    s.add32(HashPrefix::manifest);
+    st.addWithoutSigningFields(s);
+
+    pendingTokenSecret_.reset();
+    pendingKeyType_.reset();
+
+    return strHex(s.peekData());
+}
+
+std::string
+ValidatorKeys::finishRevoke(Blob const& masterSig)
+{
+    revoked_ = true;
+
+    STObject st = generatePartialRevocation(keys_.publicKey);
+
+    st[sfMasterSignature] = makeSlice(masterSig);
+
+    setManifest(st);
+
+    return xrpl::base64_encode(manifest_.data(), manifest_.size());
+}
+
+void
+ValidatorKeys::setManifest(STObject const& st)
+{
     Serializer s;
     st.add(s);
 
@@ -243,14 +470,36 @@ ValidatorKeys::revoke()
     manifest_.reserve(s.size());
     std::copy(s.begin(), s.end(), std::back_inserter(manifest_));
 
-    return xrpl::base64_encode(manifest_.data(), manifest_.size());
+    verifyManifest();
+
+    pendingTokenSecret_.reset();
+    pendingKeyType_.reset();
 }
 
 std::string
 ValidatorKeys::sign(std::string const& data) const
 {
+    // Invalid secret key
+    if (!keys_.secretKey)
+        throw std::runtime_error("This key file cannot be used to sign.");
+
     return strHex(
-        xrpl::sign(keys_.publicKey, keys_.secretKey, makeSlice(data)));
+        ripple::sign(keys_.publicKey, *keys_.secretKey, makeSlice(data)));
+}
+
+std::string
+ValidatorKeys::signHex(std::string data) const
+{
+    // Invalid secret key
+    if (!keys_.secretKey)
+        throw std::runtime_error("This key file cannot be used to sign.");
+
+    boost::algorithm::trim(data);
+    auto const blob = strUnHex(data);
+    if (!blob)
+        throw std::runtime_error("Could not decode hex string: " + data);
+    return strHex(
+        xrpl::sign(keys_.publicKey, *keys_.secretKey, makeSlice(*blob)));
 }
 
 void
