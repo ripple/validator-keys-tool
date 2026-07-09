@@ -44,7 +44,7 @@ runUnitTests()
 {
     using namespace beast::unit_test;
     reporter r;
-    bool const anyFailed = r.run_each(global_suites());
+    bool const anyFailed = r.runEach(globalSuites());
     if (anyFailed)
         return EXIT_FAILURE;  // LCOV_EXCL_LINE
     return EXIT_SUCCESS;
@@ -59,7 +59,7 @@ createKeyFile(boost::filesystem::path const& keyFile)
         throw std::runtime_error(
             "Refusing to overwrite existing key file: " + keyFile.string());
 
-    ValidatorKeys const keys(KeyType::ed25519);
+    ValidatorKeys const keys(KeyType::Ed25519);
     keys.writeToFile(keyFile);
 
     std::cout << "Validator keys stored in " << keyFile.string()
@@ -262,7 +262,7 @@ generateManifest(
     if (type == "base64")
     {
         std::cout << "Manifest #" << keys.sequence() << " (Base64):\n";
-        std::cout << base64_encode(m.data(), m.size()) << "\n\n";
+        std::cout << base64Encode(m.data(), m.size()) << "\n\n";
         return;
     }
 

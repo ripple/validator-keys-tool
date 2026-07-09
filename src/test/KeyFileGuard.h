@@ -14,7 +14,7 @@ class KeyFileGuard
 private:
     using path = boost::filesystem::path;
     path subDir_;
-    beast::unit_test::suite& test_;
+    beast::unit_test::Suite& test_;
 
     auto
     rmDir(path const& toRm)
@@ -27,7 +27,7 @@ private:
     };
 
 public:
-    KeyFileGuard(beast::unit_test::suite& test, std::string const& subDir)
+    KeyFileGuard(beast::unit_test::Suite& test, std::string const& subDir)
         : subDir_(subDir), test_(test)
     {
         using namespace boost::filesystem;

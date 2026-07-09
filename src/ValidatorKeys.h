@@ -3,6 +3,7 @@
 
 #include <boost/optional.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -78,7 +79,10 @@ public:
         return revoked_ == rhs.revoked_ && keyType_ == rhs.keyType_ &&
             tokenSequence_ == rhs.tokenSequence_ &&
             keys_.publicKey == rhs.keys_.publicKey &&
-            keys_.secretKey == rhs.keys_.secretKey;
+            std::equal(
+                keys_.secretKey.begin(),
+                keys_.secretKey.end(),
+                rhs.keys_.secretKey.begin());
     }
 
     /** Write keys to JSON file
@@ -97,7 +101,7 @@ public:
         @param keyType Key type for the token keys
     */
     boost::optional<ValidatorToken>
-    createValidatorToken(KeyType const& keyType = KeyType::secp256k1);
+    createValidatorToken(KeyType const& keyType = KeyType::Secp256k1);
 
     /** Revokes validator keys
 

@@ -11,13 +11,13 @@ namespace xrpl {
 
 namespace tests {
 
-class ValidatorKeys_test : public beast::unit_test::suite
+class ValidatorKeys_test : public beast::unit_test::Suite
 {
 private:
     void
     testKeyFile(
         boost::filesystem::path const& keyFile,
-        Json::Value const& jv,
+        json::Value const& jv,
         std::string const& expectedError)
     {
         {
@@ -38,7 +38,7 @@ private:
     }
 
     std::array<KeyType, 2> const keyTypes{
-        {KeyType::ed25519, KeyType::secp256k1}};
+        {KeyType::Ed25519, KeyType::Secp256k1}};
 
     void
     testMakeValidatorKeys()
@@ -97,7 +97,7 @@ private:
             }
             BEAST_EXPECT(error == expectedError);
 
-            Json::Value jv;
+            json::Value jv;
             jv["dummy"] = "field";
             expectedError = "Key file '" + keyFile.string() +
                 "' is missing \"key_type\" field";
@@ -124,7 +124,7 @@ private:
                 jv["key_type"].toStyledString();
             testKeyFile(keyFile, jv, expectedError);
 
-            auto const keyType = KeyType::ed25519;
+            auto const keyType = KeyType::Ed25519;
             jv["key_type"] = to_string(keyType);
             expectedError = "Key file '" + keyFile.string() +
                 "' contains invalid \"secret_key\" field: " +
@@ -148,7 +148,7 @@ private:
             testKeyFile(keyFile, jv, expectedError);
 
             jv["token_sequence"] =
-                Json::UInt(std::numeric_limits<std::uint32_t>::max());
+                json::UInt(std::numeric_limits<std::uint32_t>::max());
             expectedError = "Key file '" + keyFile.string() +
                 "' contains invalid \"revoked\" field: " +
                 jv["revoked"].toStyledString();
@@ -184,7 +184,7 @@ private:
                     derivePublicKey(tokenKeyType, token->secretKey);
 
                 STObject st(sfGeneric);
-                auto const manifest = xrpl::base64_decode(token->manifest);
+                auto const manifest = xrpl::base64Decode(token->manifest);
                 SerialIter sit(manifest.data(), manifest.size());
                 st.set(sit);
 
@@ -195,20 +195,20 @@ private:
                 auto const tpk = get<PublicKey>(st, sfSigningPubKey);
                 BEAST_EXPECT(tpk);
                 BEAST_EXPECT(*tpk == tokenPublicKey);
-                BEAST_EXPECT(verify(st, HashPrefix::manifest, tokenPublicKey));
+                BEAST_EXPECT(verify(st, HashPrefix::Manifest, tokenPublicKey));
 
                 auto const pk = get<PublicKey>(st, sfPublicKey);
                 BEAST_EXPECT(pk);
                 BEAST_EXPECT(*pk == keys.publicKey());
                 BEAST_EXPECT(verify(
                     st,
-                    HashPrefix::manifest,
+                    HashPrefix::Manifest,
                     keys.publicKey(),
                     sfMasterSignature));
             }
         }
 
-        auto const keyType = KeyType::ed25519;
+        auto const keyType = KeyType::Ed25519;
         auto const kp = generateKeyPair(keyType, randomSeed());
 
         auto keys = ValidatorKeys(
@@ -232,7 +232,7 @@ private:
             auto const revocation = keys.revoke();
 
             STObject st(sfGeneric);
-            auto const manifest = xrpl::base64_decode(revocation);
+            auto const manifest = xrpl::base64Decode(revocation);
             SerialIter sit(manifest.data(), manifest.size());
             st.set(sit);
 
@@ -244,7 +244,7 @@ private:
             BEAST_EXPECT(pk);
             BEAST_EXPECT(*pk == keys.publicKey());
             BEAST_EXPECT(verify(
-                st, HashPrefix::manifest, keys.publicKey(), sfMasterSignature));
+                st, HashPrefix::Manifest, keys.publicKey(), sfMasterSignature));
         }
     }
 
@@ -254,11 +254,11 @@ private:
         testcase("Sign");
 
         std::map<KeyType, std::string> expected(
-            {{KeyType::ed25519,
+            {{KeyType::Ed25519,
               "2EE541D6825791BF5454C571D2B363EAB3F01C73159B1F"
               "237AC6D38663A82B9D5EAD262D5F776B916E68247A1F082090F3BAE7ABC939"
               "C8F29B0DC759FD712300"},
-             {KeyType::secp256k1,
+             {KeyType::Secp256k1,
               "3045022100F142C27BF83D8D4541C7A4E759DE64A672"
               "51A388A422DFDA6F4B470A2113ABC4022002DA56695F3A805F62B55E7CC8D5"
               "55438D64A229CD0B4BA2AE33402443B20409"}});
@@ -288,7 +288,7 @@ private:
 
         using namespace boost::filesystem;
 
-        auto const keyType = KeyType::ed25519;
+        auto const keyType = KeyType::Ed25519;
         ValidatorKeys keys(keyType);
 
         {
@@ -303,7 +303,7 @@ private:
             BEAST_EXPECT(keys == fileKeys);
 
             // Overwrite file with new sequence
-            keys.createValidatorToken(KeyType::secp256k1);
+            keys.createValidatorToken(KeyType::Secp256k1);
             keys.writeToFile(keyFile);
 
             fileKeys = ValidatorKeys::make_ValidatorKeys(keyFile);
