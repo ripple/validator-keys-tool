@@ -18,11 +18,11 @@ namespace xrpl {
 std::string
 ValidatorToken::toString() const
 {
-    Json::Value jv;
+    json::Value jv;
     jv["validation_secret_key"] = strHex(secretKey);
     jv["manifest"] = manifest;
 
-    return xrpl::base64_encode(to_string(jv));
+    return xrpl::base64Encode(to_string(jv));
 }
 
 ValidatorKeys::ValidatorKeys(KeyType const& keyType)
@@ -54,8 +54,8 @@ ValidatorKeys::make_ValidatorKeys(boost::filesystem::path const& keyFile)
         throw std::runtime_error(
             "Failed to open key file: " + keyFile.string());
 
-    Json::Reader reader;
-    Json::Value jKeys;
+    json::Reader reader;
+    json::Value jKeys;
     if (!reader.parse(ifsKeys, jKeys))
     {
         throw std::runtime_error(
@@ -160,11 +160,11 @@ ValidatorKeys::writeToFile(boost::filesystem::path const& keyFile) const
 {
     using namespace boost::filesystem;
 
-    Json::Value jv;
+    json::Value jv;
     jv["key_type"] = to_string(keyType_);
     jv["public_key"] = toBase58(TokenType::NodePublic, keys_.publicKey);
     jv["secret_key"] = toBase58(TokenType::NodePrivate, keys_.secretKey);
-    jv["token_sequence"] = Json::UInt(tokenSequence_);
+    jv["token_sequence"] = json::UInt(tokenSequence_);
     jv["revoked"] = revoked_;
     if (!domain_.empty())
         jv["domain"] = domain_;
@@ -209,9 +209,9 @@ ValidatorKeys::createValidatorToken(KeyType const& keyType)
     if (!domain_.empty())
         st[sfDomain] = makeSlice(domain_);
 
-    xrpl::sign(st, HashPrefix::manifest, keyType, tokenSecret);
+    xrpl::sign(st, HashPrefix::Manifest, keyType, tokenSecret);
     xrpl::sign(
-        st, HashPrefix::manifest, keyType_, keys_.secretKey, sfMasterSignature);
+        st, HashPrefix::Manifest, keyType_, keys_.secretKey, sfMasterSignature);
 
     Serializer s;
     st.add(s);
@@ -221,7 +221,7 @@ ValidatorKeys::createValidatorToken(KeyType const& keyType)
     std::copy(s.begin(), s.end(), std::back_inserter(manifest_));
 
     return ValidatorToken{
-        xrpl::base64_encode(manifest_.data(), manifest_.size()), tokenSecret};
+        xrpl::base64Encode(manifest_.data(), manifest_.size()), tokenSecret};
 }
 
 std::string
@@ -234,7 +234,7 @@ ValidatorKeys::revoke()
     st[sfPublicKey] = keys_.publicKey;
 
     xrpl::sign(
-        st, HashPrefix::manifest, keyType_, keys_.secretKey, sfMasterSignature);
+        st, HashPrefix::Manifest, keyType_, keys_.secretKey, sfMasterSignature);
 
     Serializer s;
     st.add(s);
@@ -243,7 +243,7 @@ ValidatorKeys::revoke()
     manifest_.reserve(s.size());
     std::copy(s.begin(), s.end(), std::back_inserter(manifest_));
 
-    return xrpl::base64_encode(manifest_.data(), manifest_.size());
+    return xrpl::base64Encode(manifest_.data(), manifest_.size());
 }
 
 std::string

@@ -9,7 +9,7 @@ namespace xrpl {
 
 namespace tests {
 
-class ValidatorKeysTool_test : public beast::unit_test::suite
+class ValidatorKeysTool_test : public beast::unit_test::Suite
 {
 private:
     // Allow cout to be redirected.  Destructor restores old cout streambuf.
@@ -101,7 +101,7 @@ private:
             testToken(keyFile, expectedError);
         }
         {
-            auto const keyType = KeyType::ed25519;
+            auto const keyType = KeyType::Ed25519;
             auto const kp = generateKeyPair(keyType, randomSeed());
 
             auto keys = ValidatorKeys(
