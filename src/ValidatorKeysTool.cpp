@@ -5,6 +5,8 @@
 #include <xrpl/basics/base64.h>
 #include <xrpl/beast/core/SemanticVersion.h>
 #include <xrpl/beast/unit_test.h>
+#include <xrpl/beast/unit_test/global_suites.h>
+#include <xrpl/beast/unit_test/reporter.h>
 
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
