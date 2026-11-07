@@ -1,12 +1,13 @@
 #include <ValidatorKeys.h>
 #include <ValidatorKeysTool.h>
 
+#include <test/Reporter.h>
+
 #include <xrpl/basics/StringUtilities.h>
 #include <xrpl/basics/base64.h>
 #include <xrpl/beast/core/SemanticVersion.h>
-#include <xrpl/beast/unit_test.h>
 #include <xrpl/beast/unit_test/global_suites.h>
-#include <xrpl/beast/unit_test/reporter.h>
+#include <xrpl/beast/unit_test/suite.h>
 
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
@@ -45,7 +46,7 @@ static int
 runUnitTests()
 {
     using namespace beast::unit_test;
-    reporter r;
+    Reporter r;
     bool const anyFailed = r.runEach(globalSuites());
     if (anyFailed)
         return EXIT_FAILURE;  // LCOV_EXCL_LINE
