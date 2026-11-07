@@ -4,9 +4,6 @@
 
 #pragma once
 
-// The tool's test runner. Copied from libxrpl's beast/unit_test/reporter.h,
-// which xrpld itself does not use and which libxrpl no longer ships.
-
 #include <xrpl/beast/unit_test/amount.h>
 #include <xrpl/beast/unit_test/runner.h>
 #include <xrpl/beast/unit_test/suite_info.h>
